@@ -1,0 +1,1 @@
+{"code": "def test():\n  a = [1,2,3]\n  for i in a:\n    print(i)\ntest()"}
