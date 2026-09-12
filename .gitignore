@@ -34,7 +34,7 @@ tmp/
 *.tmp
 
 # old files (legacy)
-server.js
-public/
-test_debug.json
-problems-cache.json
+/server.js
+/public/
+/test_debug.json
+/problems-cache.json
