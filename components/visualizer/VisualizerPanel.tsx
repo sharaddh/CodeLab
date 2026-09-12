@@ -4,6 +4,14 @@ import type { TraceEvent } from "@/lib/types";
 import { ArrayVisualizer } from "./ArrayVisualizer";
 import { TreeVisualizer } from "./TreeVisualizer";
 import { LinkedListVisualizer } from "./LinkedListVisualizer";
+import { SortingVisualizer } from "./SortingVisualizer";
+import { StackVisualizer } from "./StackVisualizer";
+import { QueueVisualizer } from "./QueueVisualizer";
+import { DPVisualizer } from "./DPVisualizer";
+import { GraphVisualizer } from "./GraphVisualizer";
+import { TwoPointerVisualizer } from "./TwoPointerVisualizer";
+import { SlidingWindowVisualizer } from "./SlidingWindowVisualizer";
+import { BinarySearchVisualizer } from "./BinarySearchVisualizer";
 
 interface VisualizerPanelProps {
   trace: TraceEvent[];
@@ -40,6 +48,30 @@ function detectVisualizationType(variables: Record<string, unknown>): string {
     return "sliding-window";
   }
 
+  // Check for stack
+  if (keys.some((k) => k.includes("stack"))) {
+    return "stack";
+  }
+
+  // Check for queue
+  if (keys.some((k) => k.includes("queue"))) {
+    return "queue";
+  }
+
+  // Check for graph (adjacency list)
+  for (const [, v] of Object.entries(variables)) {
+    if (v && typeof v === "object" && "_map" in v) {
+      return "graph";
+    }
+  }
+
+  // Check for DP table (2D array)
+  for (const [, v] of Object.entries(variables)) {
+    if (Array.isArray(v) && v.length > 0 && Array.isArray(v[0])) {
+      return "dp";
+    }
+  }
+
   // Default to array if any array variable exists
   for (const [, v] of Object.entries(variables)) {
     if (Array.isArray(v) && v.length > 0) {
@@ -59,16 +91,28 @@ export function VisualizerPanel({ trace, currentStep, variables, visualizationTy
 
   const renderVisualizer = () => {
     switch (type) {
-      case "array":
       case "binary-search":
+        return <BinarySearchVisualizer trace={trace} currentStep={currentStep} variables={currentVars} />;
       case "two-pointer":
+        return <TwoPointerVisualizer trace={trace} currentStep={currentStep} variables={currentVars} />;
       case "sliding-window":
-        return <ArrayVisualizer trace={trace} currentStep={currentStep} variables={currentVars} />;
+        return <SlidingWindowVisualizer trace={trace} currentStep={currentStep} variables={currentVars} />;
+      case "sorting":
+        return <SortingVisualizer trace={trace} currentStep={currentStep} variables={currentVars} />;
+      case "stack":
+        return <StackVisualizer trace={trace} currentStep={currentStep} variables={currentVars} />;
+      case "queue":
+        return <QueueVisualizer trace={trace} currentStep={currentStep} variables={currentVars} />;
       case "tree":
       case "bst":
         return <TreeVisualizer trace={trace} currentStep={currentStep} variables={currentVars} />;
       case "linked-list":
         return <LinkedListVisualizer trace={trace} currentStep={currentStep} variables={currentVars} />;
+      case "graph":
+        return <GraphVisualizer trace={trace} currentStep={currentStep} variables={currentVars} />;
+      case "dp":
+        return <DPVisualizer trace={trace} currentStep={currentStep} variables={currentVars} />;
+      case "array":
       default:
         return <ArrayVisualizer trace={trace} currentStep={currentStep} variables={currentVars} />;
     }
