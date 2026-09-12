@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #070a11;
+  --panel: #101624;
+  --panel2: #151d2d;
+  --border: #273247;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --violet: #8b5cf6;
+  --cyan: #22d3ee;
+  --green: #4ade80;
+  --red: #f87171;
+  --amber: #fbbf24;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Monaco editor fixes */
+.monaco-editor {
+  border-radius: 8px;
+  overflow: hidden;
+}
