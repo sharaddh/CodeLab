@@ -24,7 +24,7 @@ export function SearchInput({
   className,
 }: SearchInputProps) {
   const [local, setLocal] = useState(value);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export function SearchInput({
 
   const handleChange = (v: string) => {
     setLocal(v);
-    clearTimeout(timerRef.current);
+    clearTimeout(timerRef.current ?? undefined);
     timerRef.current = setTimeout(() => onChange(v), debounceMs);
   };
 

@@ -12,15 +12,15 @@ interface TooltipProps {
 
 export function Tooltip({ children, content, side = "top", className }: TooltipProps) {
   const [open, setOpen] = useState(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const show = () => {
-    clearTimeout(timeoutRef.current);
+    clearTimeout(timeoutRef.current ?? undefined);
     timeoutRef.current = setTimeout(() => setOpen(true), 300);
   };
 
   const hide = () => {
-    clearTimeout(timeoutRef.current);
+    clearTimeout(timeoutRef.current ?? undefined);
     setOpen(false);
   };
 

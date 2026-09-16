@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { Star, CheckCircle, Clock, Circle } from "lucide-react";
-import type { Problem, UserProblemState } from "@/lib/types";
+import type { Problem, ProblemUserState } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface ProblemCardProps {
   problem: Problem;
-  userState?: UserProblemState;
+  userState?: ProblemUserState;
   index?: number;
 }
 
@@ -60,15 +60,15 @@ export function ProblemCard({ problem, userState, index }: ProblemCardProps) {
         {problem.title}
       </span>
 
-      {/* Tags */}
-      {problem.tags && problem.tags.length > 0 && (
+      {/* Topics */}
+      {problem.topics && problem.topics.length > 0 && (
         <div className="hidden sm:flex items-center gap-1 max-w-[120px] overflow-hidden">
-          {problem.tags.slice(0, 2).map((tag) => (
+          {problem.topics.slice(0, 2).map((t) => (
             <span
-              key={tag}
+              key={t.name}
               className="text-[9px] px-1 py-0.5 rounded bg-[var(--border)] text-[var(--muted)] truncate"
             >
-              {tag}
+              {t.name}
             </span>
           ))}
         </div>
