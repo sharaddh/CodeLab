@@ -15,6 +15,10 @@ const links = [
 export function Navbar() {
   const pathname = usePathname();
 
+  if (pathname === "/login") {
+    return null;
+  }
+
   return (
     <nav className="sticky top-0 z-50 flex items-center gap-5 px-5 h-[52px] bg-[#0d1117]/90 border-b border-[var(--border)] backdrop-blur-xl">
       <Link href="/" className="flex items-center gap-2.5 font-extrabold text-[15px] text-white whitespace-nowrap">
