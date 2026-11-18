@@ -2,12 +2,12 @@
 import { create } from "zustand";
 
 interface EditorState {
-  language: "java" | "python";
-  code: { java: string; python: string };
+  language: "java" | "python" | "cpp";
+  code: { java: string; python: string; cpp: string };
   fontSize: number;
   theme: string;
-  setLanguage: (lang: "java" | "python") => void;
-  setCode: (lang: "java" | "python", code: string) => void;
+  setLanguage: (lang: "java" | "python" | "cpp") => void;
+  setCode: (lang: "java" | "python" | "cpp", code: string) => void;
   setFontSize: (size: number) => void;
   setTheme: (theme: string) => void;
   getCurrentCode: () => string;
@@ -15,7 +15,7 @@ interface EditorState {
 
 export const useEditorStore = create<EditorState>((set, get) => ({
   language: "java",
-  code: { java: "", python: "" },
+  code: { java: "", python: "", cpp: "" },
   fontSize: 14,
   theme: "vs-dark",
   setLanguage: (lang) => set({ language: lang }),
