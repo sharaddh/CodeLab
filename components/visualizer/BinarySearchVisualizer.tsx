@@ -67,7 +67,7 @@ export function BinarySearchVisualizer({ trace, currentStep, variables }: Binary
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="text-[10px] font-bold text-[var(--violet)] px-1.5 py-0.5 rounded bg-[var(--violet)]/10"
+                    className="text-[10px] font-bold text-[var(--muted)] px-1.5 py-0.5 rounded bg-[var(--muted)]/10"
                   >
                     MID
                   </motion.div>
@@ -76,7 +76,7 @@ export function BinarySearchVisualizer({ trace, currentStep, variables }: Binary
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="text-[10px] font-bold text-[var(--cyan)] px-1.5 py-0.5 rounded bg-[var(--cyan)]/10"
+                    className="text-[10px] font-bold text-[var(--text)] px-1.5 py-0.5 rounded bg-[var(--text)]/10"
                   >
                     L
                   </motion.div>
@@ -98,14 +98,14 @@ export function BinarySearchVisualizer({ trace, currentStep, variables }: Binary
                 animate={{
                   opacity: 1,
                   scale: isMid ? 1.15 : 1,
-                  borderColor: isMid ? "#8b5cf6" : isLeft ? "#22d3ee" : isRight ? "#f59e0b" : inRange ? "#8b5cf640" : "#273247",
+                  borderColor: isMid ? "#71717a" : isLeft ? "#a1a1aa" : isRight ? "#f59e0b" : inRange ? "#71717a40" : "#273247",
                 }}
                 transition={{ duration: 0.2 }}
                 className="flex items-center justify-center rounded-lg border-2 font-mono text-[13px] font-bold"
                 style={{
                   width: cellWidth,
                   height: cellWidth,
-                  backgroundColor: isMid ? "#8b5cf620" : inRange ? "#111827" : "#0a0f1a",
+                  backgroundColor: isMid ? "#71717a20" : inRange ? "#111827" : "#0a0f1a",
                   color: isMid ? "#a78bfa" : inRange ? "#e2e8f0" : "#475569",
                 }}
               >
@@ -122,12 +122,12 @@ export function BinarySearchVisualizer({ trace, currentStep, variables }: Binary
       {pointers.mid !== undefined && pointers.target !== undefined && arr[pointers.mid] !== undefined && (
         <div className="mt-3 p-3 bg-[#111827] border border-[var(--border)] rounded-lg text-[12px] font-mono">
           <span className="text-[var(--muted)]">nums[mid] = </span>
-          <span className="text-[var(--violet)] font-bold">{arr[pointers.mid]}</span>
+          <span className="text-[var(--muted)] font-bold">{arr[pointers.mid]}</span>
           <span className="text-[var(--muted)]">, target = </span>
           <span className="text-[var(--amber)] font-bold">{pointers.target}</span>
           <span className="text-[var(--muted)]"> → </span>
           {arr[pointers.mid] < pointers.target ? (
-            <span className="text-[var(--cyan)]">{arr[pointers.mid]} &lt; {pointers.target} → move left = mid + 1</span>
+            <span className="text-[var(--text)]">{arr[pointers.mid]} &lt; {pointers.target} → move left = mid + 1</span>
           ) : arr[pointers.mid] > pointers.target ? (
             <span className="text-[var(--amber)]">{arr[pointers.mid]} &gt; {pointers.target} → move right = mid - 1</span>
           ) : (
@@ -140,8 +140,8 @@ export function BinarySearchVisualizer({ trace, currentStep, variables }: Binary
       <div className="flex gap-3 flex-wrap mt-2 text-[11px]">
         {pointers.left !== undefined && (
           <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-[var(--cyan)]" />
-            <span className="font-mono text-[var(--cyan)]">left = {pointers.left}</span>
+            <div className="w-2.5 h-2.5 rounded-full bg-[var(--text)]" />
+            <span className="font-mono text-[var(--text)]">left = {pointers.left}</span>
           </div>
         )}
         {pointers.right !== undefined && (
@@ -152,8 +152,8 @@ export function BinarySearchVisualizer({ trace, currentStep, variables }: Binary
         )}
         {pointers.mid !== undefined && (
           <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-[var(--violet)]" />
-            <span className="font-mono text-[var(--violet)]">mid = {pointers.mid}</span>
+            <div className="w-2.5 h-2.5 rounded-full bg-[var(--muted)]" />
+            <span className="font-mono text-[var(--muted)]">mid = {pointers.mid}</span>
           </div>
         )}
       </div>
