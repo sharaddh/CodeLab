@@ -65,8 +65,8 @@ export function StackVisualizer({ trace, currentStep, variables }: StackVisualiz
               style={{
                 width: cellWidth,
                 height: cellHeight,
-                backgroundColor: isTop ? "#8b5cf620" : "#111827",
-                borderColor: isTop ? "#8b5cf6" : "#273247",
+                backgroundColor: isTop ? "#71717a20" : "#111827",
+                borderColor: isTop ? "#71717a" : "#273247",
                 color: isTop ? "#a78bfa" : "#e2e8f0",
               }}
             >
