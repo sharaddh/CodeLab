@@ -56,7 +56,7 @@ export function SortingVisualizer({ trace, currentStep, variables }: SortingVisu
               className="rounded-t-sm"
               style={{
                 width: barWidth,
-                backgroundColor: isComparing ? "#8b5cf6" : "#273247",
+                backgroundColor: isComparing ? "#71717a" : "#273247",
                 minHeight: 20,
               }}
             />
