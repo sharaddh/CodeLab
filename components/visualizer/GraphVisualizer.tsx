@@ -100,7 +100,7 @@ export function GraphVisualizer({ trace, currentStep, variables }: GraphVisualiz
                 cx={pos.x}
                 cy={pos.y}
                 r={nodeRadius}
-                fill={isCurrent ? "#8b5cf6" : "#111827"}
+                fill={isCurrent ? "#71717a" : "#111827"}
                 stroke={isCurrent ? "#a78bfa" : "#273247"}
                 strokeWidth={2}
               />
