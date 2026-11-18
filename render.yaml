@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: leetcode-revision-lab
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: NEXT_PUBLIC_COMPANION_URL
+        sync: false # set to your companion service URL after deploy, e.g. https://lc-lab-companion.onrender.com
+
+  - type: web
+    name: lc-lab-companion
+    runtime: docker
+    plan: free
+    dockerfilePath: ./companion-server/Dockerfile
+    dockerContext: ./companion-server
+    envVars:
+      - key: PORT
+        value: 3001
