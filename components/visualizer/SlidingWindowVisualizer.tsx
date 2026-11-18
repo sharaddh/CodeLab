@@ -64,19 +64,19 @@ export function SlidingWindowVisualizer({ trace, currentStep, variables }: Slidi
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="text-[10px] font-bold text-[var(--violet)]"
+                    className="text-[10px] font-bold text-[var(--muted)]"
                   >
                     ┌
                   </motion.div>
                 )}
                 {inWindow && idx > windowStart && idx < windowEnd && (
-                  <div className="text-[10px] text-[var(--violet)]/50">─</div>
+                  <div className="text-[10px] text-[var(--muted)]/50">─</div>
                 )}
                 {idx === windowEnd && (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="text-[10px] font-bold text-[var(--violet)]"
+                    className="text-[10px] font-bold text-[var(--muted)]"
                   >
                     ┐
                   </motion.div>
@@ -89,14 +89,14 @@ export function SlidingWindowVisualizer({ trace, currentStep, variables }: Slidi
                 animate={{
                   opacity: 1,
                   scale: inWindow ? 1.1 : 1,
-                  borderColor: inWindow ? "#8b5cf6" : "#273247",
+                  borderColor: inWindow ? "#71717a" : "#273247",
                 }}
                 transition={{ duration: 0.2 }}
                 className="flex items-center justify-center rounded-lg border-2 font-mono text-[13px] font-bold"
                 style={{
                   width: cellWidth,
                   height: cellWidth,
-                  backgroundColor: inWindow ? "#8b5cf615" : "#111827",
+                  backgroundColor: inWindow ? "#71717a15" : "#111827",
                   color: inWindow ? "#a78bfa" : "#e2e8f0",
                 }}
               >
@@ -112,7 +112,7 @@ export function SlidingWindowVisualizer({ trace, currentStep, variables }: Slidi
       {/* Window info */}
       <div className="flex gap-4 text-[11px]">
         <div className="flex items-center gap-1.5">
-          <span className="font-mono text-[var(--violet)]">window = [{windowStart}..{windowEnd}]</span>
+          <span className="font-mono text-[var(--muted)]">window = [{windowStart}..{windowEnd}]</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="font-mono text-[var(--muted)]">size = {windowEnd - windowStart + 1}</span>
