@@ -9,23 +9,39 @@ interface ArrayVisualizerProps {
   variables: Record<string, unknown>;
 }
 
-function extractArray(vars: Record<string, unknown>): number[] | null {
-  for (const [, v] of Object.entries(vars)) {
-    if (Array.isArray(v) && v.every((x) => typeof x === "number")) {
-      return v as number[];
+function toDisplay(v: unknown): string {
+  if (v === null) return "null";
+  if (v === undefined) return "—";
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  if (v && typeof v === "object") {
+    const o = v as Record<string, any>;
+    if ("_str" in o) return String(o._str);
+    if ("_ref" in o) return `ref`;
+  }
+  try { return JSON.stringify(v); } catch { return String(v); }
+}
+
+function extractArray(vars: Record<string, unknown>): { name: string; arr: unknown[] } | null {
+  let fallback: { name: string; arr: unknown[] } | null = null;
+  for (const [name, v] of Object.entries(vars)) {
+    if (Array.isArray(v) && v.length >= 0) {
+      const item = { name, arr: v as unknown[] };
+      if (/nums|arr|array|list|values|digits|chars|s\b|str/i.test(name)) return item;
+      if (!fallback) fallback = item;
     }
     if (v && typeof v === "object" && "_arr" in v && Array.isArray((v as { _arr: unknown[] })._arr)) {
-      const arr = (v as { _arr: (number | { _str: string })[] })._arr;
-      const nums = arr.map((x) => (typeof x === "number" ? x : null)).filter((x): x is number => x !== null);
-      if (nums.length > 0) return nums;
+      const item = { name, arr: (v as { _arr: unknown[] })._arr };
+      if (/nums|arr|array|list|values|digits|chars|s\b|str/i.test(name)) return item;
+      if (!fallback) fallback = item;
     }
   }
-  return null;
+  return fallback;
 }
 
 function extractPointers(vars: Record<string, unknown>): Record<string, number> {
   const pointers: Record<string, number> = {};
-  const pointerNames = ["left", "right", "mid", "i", "j", "slow", "fast", "start", "end", "low", "high", "l", "r", "m"];
+  const pointerNames = ["left", "right", "mid", "i", "j", "slow", "fast", "start", "end", "low", "high", "l", "r", "m", "k", "p", "q"];
   for (const [name, val] of Object.entries(vars)) {
     if (pointerNames.includes(name.toLowerCase()) && typeof val === "number") {
       pointers[name] = val;
@@ -34,38 +50,41 @@ function extractPointers(vars: Record<string, unknown>): Record<string, number> 
   return pointers;
 }
 
-const POINTER_COLORS = ["#8b5cf6", "#22d3ee", "#f59e0b", "#f87171", "#4ade80", "#ec4899"];
+const POINTER_COLORS = ["#e4e4e7", "#a1a1aa", "#71717a", "#d4d4d8", "#52525b", "#fafafa"];
 
 export function ArrayVisualizer({ trace, currentStep, variables }: ArrayVisualizerProps) {
-  const arr = extractArray(variables);
+  const found = extractArray(variables);
   const pointers = extractPointers(variables);
 
-  if (!arr) {
+  if (!found) {
     return (
       <div className="text-[var(--muted)] text-[13px] p-4">
-        No array detected in variables. The visualizer will show arrays when debugging code that uses them.
+        No list/array detected at this step. If your code uses a list variable, it will appear here as it changes.
       </div>
     );
   }
 
-  const cellWidth = Math.min(60, Math.max(30, 600 / arr.length));
+  const arr = found.arr;
+  const cellWidth = Math.min(64, Math.max(34, 700 / Math.max(arr.length, 1)));
   const totalWidth = arr.length * (cellWidth + 4) + 40;
 
   return (
-    <div className="p-4 overflow-x-auto">
-      {/* Array */}
-      <div className="flex items-end gap-1 mb-6" style={{ minWidth: totalWidth }}>
+    <div className="p-4 overflow-x-auto space-y-3">
+      <div className="text-[12px] text-[var(--muted)]">
+        Showing <span className="font-mono text-[var(--text)]">{found.name}</span> — each box is one element. Number under box is its <b>index</b>. Colored labels show pointer/index variables.
+      </div>
+      <div className="flex items-end gap-1" style={{ minWidth: totalWidth }}>
         {arr.map((val, idx) => {
           const pointerAtThisIndex = Object.entries(pointers).find(([, v]) => v === idx);
-          const pointerName = pointerAtThisIndex?.[0];
+          const pointerName = pointerAtThisIndex ? pointerAtThisIndex[0] : undefined;
           const pointerColorIdx = pointerName
             ? Object.keys(pointers).indexOf(pointerName) % POINTER_COLORS.length
             : 0;
           const pointerColor = POINTER_COLORS[pointerColorIdx];
+          const label = toDisplay(val);
 
           return (
             <div key={idx} className="flex flex-col items-center">
-              {/* Pointer label */}
               {pointerName && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
@@ -76,54 +95,50 @@ export function ArrayVisualizer({ trace, currentStep, variables }: ArrayVisualiz
                   {pointerName}
                 </motion.div>
               )}
-              {/* Cell */}
               <motion.div
                 layout
-                initial={{ opacity: 0, scale: 0.8 }}
+                initial={{ opacity: 0, scale: 0.9 }}
                 animate={{
                   opacity: 1,
-                  scale: pointerAtThisIndex ? 1.1 : 1,
+                  scale: pointerAtThisIndex ? 1.08 : 1,
                   borderColor: pointerAtThisIndex ? pointerColor : "#273247",
                 }}
                 transition={{ duration: 0.2 }}
-                className="flex items-center justify-center rounded-lg border-2 font-mono text-[13px] font-bold"
+                className="flex items-center justify-center rounded-lg border-2 font-mono text-[12px] font-bold px-1 text-center"
                 style={{
-                  width: cellWidth,
+                  minWidth: cellWidth,
                   height: cellWidth,
                   backgroundColor: pointerAtThisIndex ? `${pointerColor}15` : "#111827",
                   color: pointerAtThisIndex ? pointerColor : "#e2e8f0",
                 }}
+                title={`index ${idx} = ${label}`}
               >
-                {val}
+                {label.length > 6 ? label.slice(0, 5) + "…" : label}
               </motion.div>
-              {/* Index */}
-              <div className="text-[9px] text-[#475569] mt-1 font-mono">{idx}</div>
+              <div className="text-[9px] text-[#64748b] mt-1 font-mono">idx {idx}</div>
             </div>
           );
         })}
       </div>
 
-      {/* Pointer legend */}
-      {Object.keys(pointers).length > 0 && (
+      {Object.keys(pointers).length > 0 ? (
         <div className="flex gap-3 flex-wrap">
           {Object.entries(pointers).map(([name, idx], i) => (
-            <div key={name} className="flex items-center gap-1.5 text-[11px]">
-              <div
-                className="w-2.5 h-2.5 rounded-full"
-                style={{ backgroundColor: POINTER_COLORS[i % POINTER_COLORS.length] }}
-              />
-              <span className="font-mono" style={{ color: POINTER_COLORS[i % POINTER_COLORS.length] }}>
-                {name}
-              </span>
-              <span className="text-[var(--muted)]">= {idx}</span>
+            <div key={name} className="flex items-center gap-1.5 text-[11px] px-2 py-1 rounded bg-[#111827] border border-[var(--border)]">
+              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: POINTER_COLORS[i % POINTER_COLORS.length] }} />
+              <span className="font-mono" style={{ color: POINTER_COLORS[i % POINTER_COLORS.length] }}>{name}</span>
+              <span className="text-[var(--muted)]">points to index</span>
+              <span className="font-mono text-[var(--text)]">{idx}</span>
+              {arr[idx] !== undefined && <span className="text-[var(--muted)]">(value: <span className="text-[var(--text)] font-mono">{toDisplay(arr[idx])}</span>)</span>}
             </div>
           ))}
         </div>
+      ) : (
+        <div className="text-[11px] text-[var(--muted)]">No pointer/index variables detected yet (common ones: i, j, left, right, mid).</div>
       )}
 
-      {/* Step info */}
-      <div className="mt-4 text-[12px] text-[var(--muted)] font-mono">
-        Step {currentStep + 1} of {trace.length} | Array length: {arr.length}
+      <div className="text-[12px] text-[var(--muted)] font-mono">
+        Step {currentStep + 1} of {trace.length} | length: {arr.length}
       </div>
     </div>
   );
