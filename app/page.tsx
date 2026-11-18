@@ -63,7 +63,7 @@ export default function DashboardPage() {
           </p>
           <div className="mt-3 text-[11px] text-[var(--dim)] flex flex-wrap gap-x-4 gap-y-1">
             <span>uptime: <span className="text-[var(--text)]">stable</span></span>
-            <span>companion: <span className="text-[var(--muted)]">:3001</span></span>
+            <span>companion: <span className="text-[var(--muted)]">{process.env.NEXT_PUBLIC_COMPANION_URL || "localhost:3001"}</span></span>
             <span>mode: <span className="text-[var(--text)]">INTERACTIVE</span></span>
           </div>
         </div>

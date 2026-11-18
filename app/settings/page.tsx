@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { Monitor, Code, Bug, Settings } from "lucide-react";
 
+const COMPANION_URL = process.env.NEXT_PUBLIC_COMPANION_URL || "http://localhost:3001";
+
 export default function SettingsPage() {
   const [envStatus, setEnvStatus] = useState<{ node: boolean; java: boolean; javac: boolean; python: boolean; gpp: boolean } | null>(null);
   const [fontSize, setFontSize] = useState(13);
@@ -11,7 +13,7 @@ export default function SettingsPage() {
   const [wordWrap, setWordWrap] = useState(true);
 
   useEffect(() => {
-    fetch("http://localhost:3001/api/system/status")
+    fetch(`${COMPANION_URL}/api/system/status`)
       .then((r) => r.json())
       .then(setEnvStatus)
       .catch(() => setEnvStatus({ node: true, java: false, javac: false, python: false, gpp: false }));
@@ -30,7 +32,7 @@ export default function SettingsPage() {
       </div>
 
       <section className="mb-6">
-        <h2 className="text-[12px] font-bold mb-2 flex items-center gap-2 text-[var(--text)] uppercase tracking-widest"><Monitor size={14} /> &gt; env_probe --companion :3001</h2>
+        <h2 className="text-[12px] font-bold mb-2 flex items-center gap-2 text-[var(--text)] uppercase tracking-widest"><Monitor size={14} /> &gt; env_probe --companion {COMPANION_URL}</h2>
         <div className="border border-[var(--border)] bg-[#080809] divide-y divide-[var(--border)]">
           {[
             { label: "node", key: "node" as const },
@@ -90,8 +92,9 @@ export default function SettingsPage() {
         <h2 className="text-[12px] font-bold mb-2 flex items-center gap-2 text-[var(--text)] uppercase tracking-widest"><Bug size={14} /> &gt; companion.service</h2>
         <div className="border border-[var(--border)] bg-[#080809] p-4">
           <div className="text-[12px] text-[var(--muted)] mb-3">Execution/debug bridge daemon. Required for Run/Debug and C++/Java/Python toolchain checks.</div>
+          <div className="text-[12px] text-[var(--muted)] mb-2">endpoint: <span className="text-[var(--text)]">{COMPANION_URL}</span></div>
           <code className="block px-3 py-2 bg-[#0a0a0c] border border-[var(--border)] text-[13px] text-[var(--text)]">$ npm run companion</code>
-          <div className="text-[11px] text-[var(--dim)] mt-2">default port: 3001 -- override: <span className="text-[var(--text)]">COMPANION_PORT</span></div>
+          <div className="text-[11px] text-[var(--dim)] mt-2">local default: 3001 -- override: <span className="text-[var(--text)]">PORT</span> / <span className="text-[var(--text)]">COMPANION_PORT</span>. set <span className="text-[var(--text)]">NEXT_PUBLIC_COMPANION_URL</span> for deployed companion.</div>
         </div>
       </section>
     </div>

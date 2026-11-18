@@ -168,6 +168,8 @@ export default function ProblemPage() {
     [slug, language, setCode, updateUserState, getUserState]
   );
 
+  const COMPANION_URL = process.env.NEXT_PUBLIC_COMPANION_URL || "http://localhost:3001";
+
   const handleRun = useCallback(async () => {
     if (!currentCode || isRunning) return;
     setIsRunning(true);
@@ -175,7 +177,7 @@ export default function ProblemPage() {
     setConsoleError("");
     setBottomPanel("console");
     try {
-      const res = await fetch("http://localhost:3001/api/execute", {
+      const res = await fetch(`${COMPANION_URL}/api/execute`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ language, code: currentCode, input: testInput }),
@@ -184,7 +186,7 @@ export default function ProblemPage() {
       setConsoleOutput(data.stdout || "");
       setConsoleError(data.stderr || "");
     } catch {
-      setConsoleError("[ERR] companion_offline @ :3001\n> start: npm run companion");
+      setConsoleError(`[ERR] companion_offline @ ${COMPANION_URL}\n> start: npm run companion (local) or set NEXT_PUBLIC_COMPANION_URL`);
     } finally {
       setIsRunning(false);
     }
@@ -202,7 +204,7 @@ export default function ProblemPage() {
     setIsDebugRun(true);
     setBottomPanel("debugger");
     try {
-      const res = await fetch("http://localhost:3001/api/debug/trace", {
+      const res = await fetch(`${COMPANION_URL}/api/debug/trace`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ language, code: currentCode, input: testInput }),
@@ -215,12 +217,12 @@ export default function ProblemPage() {
         stopDebugging();
       }
     } catch {
-      setDebugNotice("[ERR] companion_offline @ :3001 (npm run companion)");
+      setDebugNotice(`[ERR] companion_offline @ ${COMPANION_URL} (set NEXT_PUBLIC_COMPANION_URL or run companion locally)`);
       stopDebugging();
     } finally {
       setIsDebugRun(false);
     }
-  }, [currentCode, language, testInput, isDebugRun, setTrace, setBottomPanel, stopDebugging]);
+  }, [currentCode, language, testInput, isDebugRun, setTrace, setBottomPanel, stopDebugging, COMPANION_URL]);
 
   useEffect(() => {
     if (!isPlaying || !isDebugging) return;
