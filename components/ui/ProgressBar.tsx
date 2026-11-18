@@ -13,8 +13,8 @@ const colorMap = {
   green: "bg-[var(--green)]",
   amber: "bg-[var(--amber)]",
   red: "bg-[var(--red)]",
-  violet: "bg-[var(--violet)]",
-  cyan: "bg-[var(--cyan)]",
+  violet: "bg-[var(--muted)]",
+  cyan: "bg-[var(--text)]",
 };
 
 const sizeMap = {
