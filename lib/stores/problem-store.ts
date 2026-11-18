@@ -21,7 +21,7 @@ function saveUserStates(states: Record<string, ProblemUserState>) {
 function getDefaultState(slug: string): ProblemUserState {
   return {
     slug,
-    code: { java: "", python: "" },
+    code: { java: "", python: "", cpp: "" },
     language: "java",
     notes: "",
     status: "unseen",
@@ -46,7 +46,7 @@ interface ProblemStore {
   updateUserState: (slug: string, updates: Partial<ProblemUserState>) => void;
   setStatus: (slug: string, status: ProblemStatus) => void;
   toggleFavorite: (slug: string) => void;
-  setCode: (slug: string, lang: "java" | "python", code: string) => void;
+  setCode: (slug: string, lang: "java" | "python" | "cpp", code: string) => void;
   setNotes: (slug: string, notes: string) => void;
   addAttempt: (slug: string, attempt: Attempt) => void;
   loadFromStorage: () => void;
@@ -60,12 +60,26 @@ export const useProblemStore = create<ProblemStore>((set, get) => ({
   setCurrentDetail: (detail) => set({ currentDetail: detail }),
   getUserState: (slug) => {
     const { userStates } = get();
-    return userStates[slug] ?? getDefaultState(slug);
+    const state = userStates[slug] ?? getDefaultState(slug);
+    return {
+      ...getDefaultState(slug),
+      ...state,
+      code: { ...getDefaultState(slug).code, ...(state.code || {}) },
+    };
   },
   updateUserState: (slug, updates) =>
     set((state) => {
       const existing = state.userStates[slug] ?? getDefaultState(slug);
-      const updated = { ...existing, ...updates };
+      const updated = {
+        ...getDefaultState(slug),
+        ...existing,
+        ...updates,
+        code: {
+          ...getDefaultState(slug).code,
+          ...(existing.code || {}),
+          ...(updates.code || {}),
+        },
+      };
       const newUserStates = { ...state.userStates, [slug]: updated };
       saveUserStates(newUserStates);
       return { userStates: newUserStates };
