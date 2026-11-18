@@ -61,8 +61,8 @@ export function LinkedListVisualizer({ trace, currentStep, variables }: LinkedLi
                   style={{
                     width: nodeWidth,
                     height: 36,
-                    backgroundColor: isCurrent ? "#8b5cf620" : "#111827",
-                    borderColor: isCurrent ? "#8b5cf6" : "#273247",
+                    backgroundColor: isCurrent ? "#71717a20" : "#111827",
+                    borderColor: isCurrent ? "#71717a" : "#273247",
                     color: isCurrent ? "#a78bfa" : "#e2e8f0",
                   }}
                 >
