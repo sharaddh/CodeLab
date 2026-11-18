@@ -124,7 +124,7 @@ export function TreeVisualizer({ trace, currentStep, variables }: TreeVisualizer
                 cx={baseX + node.x * 40}
                 cy={baseY + node.y * levelHeight}
                 r={nodeR}
-                fill={isCurrent ? "#8b5cf6" : "#111827"}
+                fill={isCurrent ? "#71717a" : "#111827"}
                 stroke={isCurrent ? "#a78bfa" : "#273247"}
                 strokeWidth={2}
               />
