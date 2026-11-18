@@ -28,7 +28,7 @@ export interface ProblemDetail {
   examples: Example[];
   constraints: string[];
   hints: string[];
-  starterCode: { java?: string; python?: string };
+  starterCode: { java?: string; python?: string; cpp?: string };
   approaches: Approach[];
   solutionMarkdown?: string;
 }
@@ -45,7 +45,7 @@ export interface Approach {
   explanation: string;
   timeComplexity: string;
   spaceComplexity: string;
-  code: { java?: string; python?: string };
+  code: { java?: string; python?: string; cpp?: string };
   pros: string[];
   cons: string[];
 }
@@ -61,6 +61,7 @@ export interface RawSolution {
     space: string;
     python?: string;
     java?: string;
+    cpp?: string;
     pros?: string[];
     cons?: string[];
   }[];
@@ -94,7 +95,7 @@ export type ProblemStatus = "unseen" | "attempted" | "solved" | "reviewed" | "ma
 
 export interface Attempt {
   id: string;
-  language: "java" | "python";
+  language: "java" | "python" | "cpp";
   code: string;
   result: "passed" | "wrong_answer" | "compile_error" | "runtime_error" | "timeout";
   timestamp: number;
@@ -111,8 +112,8 @@ export interface RevisionState {
 
 export interface ProblemUserState {
   slug: string;
-  code: { java: string; python: string };
-  language: "java" | "python";
+  code: { java: string; python: string; cpp: string };
+  language: "java" | "python" | "cpp";
   notes: string;
   status: ProblemStatus;
   favorite: boolean;
@@ -122,7 +123,7 @@ export interface ProblemUserState {
 
 // --- Execution ---
 export interface ExecuteRequest {
-  language: "java" | "python";
+  language: "java" | "python" | "cpp";
   code: string;
   input?: string;
 }
