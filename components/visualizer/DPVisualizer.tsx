@@ -54,14 +54,14 @@ export function DPVisualizer({ trace, currentStep, variables }: DPVisualizerProp
                   animate={{
                     opacity: 1,
                     scale: isActive ? 1.1 : 1,
-                    borderColor: isActive ? "#8b5cf6" : "#273247",
+                    borderColor: isActive ? "#71717a" : "#273247",
                   }}
                   transition={{ duration: 0.15, delay: (i * row.length + j) * 0.01 }}
                   className="flex items-center justify-center border-2 font-mono text-[11px] font-bold"
                   style={{
                     width: cellSize,
                     height: cellSize,
-                    backgroundColor: isActive ? "#8b5cf620" : "#111827",
+                    backgroundColor: isActive ? "#71717a20" : "#111827",
                     color: isActive ? "#a78bfa" : "#e2e8f0",
                   }}
                 >
