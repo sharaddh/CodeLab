@@ -10,8 +10,8 @@ interface StatusIndicatorProps {
 
 const config = {
   solved: { icon: CheckCircle, color: "text-[var(--green)]", label: "Solved" },
-  reviewed: { icon: CheckCircle, color: "text-[var(--cyan)]", label: "Reviewed" },
-  mastered: { icon: Zap, color: "text-[var(--violet)]", label: "Mastered" },
+  reviewed: { icon: CheckCircle, color: "text-[var(--text)]", label: "Reviewed" },
+  mastered: { icon: Zap, color: "text-[var(--muted)]", label: "Mastered" },
   attempted: { icon: Clock, color: "text-[var(--amber)]", label: "Attempted" },
   none: { icon: Circle, color: "text-[#374151]", label: "Not started" },
 };
