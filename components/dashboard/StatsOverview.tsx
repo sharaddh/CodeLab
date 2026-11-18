@@ -48,9 +48,9 @@ export function StatsOverview() {
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
       {[
         { label: "Solved", value: solved, total: allProblems.length, icon: CheckCircle, color: "text-[var(--green)]" },
-        { label: "Reviewed", value: reviewed, total: solved, icon: Target, color: "text-[var(--cyan)]" },
+        { label: "Reviewed", value: reviewed, total: solved, icon: Target, color: "text-[var(--text)]" },
         { label: "Favorites", value: favorites, total: null, icon: Flame, color: "text-[var(--amber)]" },
-        { label: "Progress", value: Math.round(((easySolved + mediumSolved + hardSolved) / allProblems.length) * 100), total: null, icon: TrendingUp, color: "text-[var(--violet)]", suffix: "%" },
+        { label: "Progress", value: Math.round(((easySolved + mediumSolved + hardSolved) / allProblems.length) * 100), total: null, icon: TrendingUp, color: "text-[var(--muted)]", suffix: "%" },
       ].map((s) => (
         <div key={s.label} className="border border-[var(--border)] bg-[var(--panel)] rounded-xl p-4">
           <s.icon size={18} className={s.color} />
