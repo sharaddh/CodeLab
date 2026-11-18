@@ -1,8 +1,8 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ExternalLink, Star, Play, Bug, CheckCircle2, Lightbulb } from "lucide-react";
+import { ArrowLeft, ExternalLink, Star, Play, Pause, Bug, CheckCircle2, Lightbulb, SkipBack, SkipForward, RotateCcw, Square } from "lucide-react";
 import Editor from "@monaco-editor/react";
 import problemsData from "@/data/problems.json";
 import detailsData from "@/data/details.json";
@@ -14,6 +14,38 @@ import { useUIStore } from "@/lib/stores/ui-store";
 import { cn, difficultyBg } from "@/lib/utils";
 import { VisualizerPanel } from "@/components/visualizer/VisualizerPanel";
 import type { Problem, RawProblemDetail, RawSolution, ProblemDetail, TraceEvent } from "@/lib/types";
+
+function formatSlimValue(v: unknown): string {
+  if (v === null) return "null";
+  if (v === undefined) return "undefined";
+  if (typeof v === "string") return JSON.stringify(v);
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  if (Array.isArray(v)) return `[${v.map(formatSlimValue).join(", ")}]`;
+  if (v && typeof v === "object") {
+    const o = v as Record<string, any>;
+    if ("error" in o && typeof o.error === "string" && Object.keys(o).length <= 2) return String(o.error);
+    if ("_arr" in o) return `[${(o._arr || []).map(formatSlimValue).join(", ")}]`;
+    if ("_set" in o) return `{${(o._set || []).map(formatSlimValue).join(", ")}}`;
+    if ("_map" in o) {
+      const entries = Object.entries(o._map || {}).map(([k, val]) => `${k}: ${formatSlimValue(val)}`);
+      return `{${entries.join(", ")}}`;
+    }
+    if ("_str" in o) return String(o._str);
+    if ("_ref" in o) return `<ref ${o._ref}>`;
+    if ("_obj" in o) {
+      const inner = Object.entries(o._obj || {}).map(([k, val]) => `${k}: ${formatSlimValue(val)}`).join(", ");
+      return `${o._type || "object"}{${inner}}`;
+    }
+    try { return JSON.stringify(v); } catch { return String(v); }
+  }
+  return String(v);
+}
+
+function slimArrayItems(v: unknown): unknown[] | null {
+  if (Array.isArray(v)) return v;
+  if (v && typeof v === "object" && "_arr" in (v as any)) return (v as any)._arr || [];
+  return null;
+}
 
 const allProblems = problemsData as Problem[];
 const allRawDetails = detailsData as Record<string, RawProblemDetail>;
@@ -30,13 +62,13 @@ function normalizeDetail(slug: string): ProblemDetail | null {
 
   const examples = (raw?.examples || []).map((ex) => {
     const text = ex.example_text || "";
-    const inputMatch = text.match(/Input:\s*([\s\S]*?)(?=Output:|$)/);
-    const outputMatch = text.match(/Output:\s*([\s\S]*?)(?=Explanation:|$)/);
-    const explanationMatch = text.match(/Explanation:\s*([\s\S]*?)$/);
+    const inputMatch = text.match(/Input:\s*([\s\S]*)(?=Output:|$)/);
+    const outputMatch = text.match(/Output:\s*([\s\S]*)(?=Explanation:|$)/);
+    const explanationMatch = text.match(/Explanation:\s*([\s\S]*)$/);
     return {
-      input: inputMatch?.[1]?.trim() || text,
-      output: outputMatch?.[1]?.trim() || "",
-      explanation: explanationMatch?.[1]?.trim() || undefined,
+      input: inputMatch?.[1].trim() || text,
+      output: outputMatch?.[1].trim() || "",
+      explanation: explanationMatch?.[1].trim() || undefined,
     };
   });
 
@@ -46,17 +78,18 @@ function normalizeDetail(slug: string): ProblemDetail | null {
     explanation: a.idea,
     timeComplexity: a.time,
     spaceComplexity: a.space,
-    code: { java: a.java, python: a.python },
+    code: { java: a.java, python: a.python, cpp: a.cpp },
     pros: a.pros || [],
     cons: a.cons || [],
   }));
 
   // Try to extract starter code from snippets
   const snippets = raw?.snippets || {};
-  let starterCode: { java?: string; python?: string } = {};
+  let starterCode: { java: string; python: string; cpp: string } = { java: "", python: "", cpp: "" };
   if (snippets.python3) starterCode.python = snippets.python3;
   else if (snippets.python) starterCode.python = snippets.python;
   if (snippets.java) starterCode.java = snippets.java;
+  if (snippets.cpp) starterCode.cpp = snippets.cpp;
 
   return {
     slug,
@@ -82,7 +115,7 @@ export default function ProblemPage() {
 
   const { language, code, setLanguage, setCode, fontSize } = useEditorStore();
   const { getUserState, updateUserState, loadFromStorage } = useProblemStore();
-  const { isDebugging, trace, currentStep, setTrace, nextStep, prevStep, stopDebugging, restart } = useDebuggerStore();
+  const { isDebugging, trace, currentStep, isPlaying, speed, setTrace, nextStep, prevStep, setPlaying, setSpeed, stopDebugging, restart } = useDebuggerStore();
   const { bottomPanel, setBottomPanel } = useUIStore();
 
   const [mounted, setMounted] = useState(false);
@@ -91,9 +124,13 @@ export default function ProblemPage() {
   const [consoleError, setConsoleError] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [isDebugRun, setIsDebugRun] = useState(false);
-  const [showHints, setShowHints] = useState<number[]>([]);
+  const [debugNotice, setDebugNotice] = useState("");
+  const [showHINTS, setShowHINTS] = useState<number[]>([]);
   const [notes, setNotes] = useState("");
   const [activeApproach, setActiveApproach] = useState(0);
+  const editorRef = useRef<any>(null);
+  const monacoRef = useRef<any>(null);
+  const decorationsRef = useRef<any>(null);
 
   useEffect(() => {
     loadFromStorage();
@@ -102,17 +139,21 @@ export default function ProblemPage() {
 
   // Load saved code
   useEffect(() => {
-    if (!mounted || !slug) return;
+    if (!mounted || !slug || !detail) return;
     const state = getUserState(slug);
     if (state.code.java) { setCode("java", state.code.java); }
     if (state.code.python) { setCode("python", state.code.python); }
+    if (state.code.cpp) { setCode("cpp", state.code.cpp); }
     if (state.language) { setLanguage(state.language); }
     if (state.notes) { setNotes(state.notes); }
-    if (!state.code.java && detail?.starterCode?.java) {
+    if (!state.code.java && detail.starterCode.java) {
       setCode("java", detail.starterCode.java);
     }
-    if (!state.code.python && detail?.starterCode?.python) {
+    if (!state.code.python && detail.starterCode.python) {
       setCode("python", detail.starterCode.python);
+    }
+    if (!state.code.cpp && detail.starterCode.cpp) {
+      setCode("cpp", detail.starterCode.cpp);
     }
   }, [mounted, slug, detail, getUserState, setCode, setLanguage]);
 
@@ -143,7 +184,7 @@ export default function ProblemPage() {
       setConsoleOutput(data.stdout || "");
       setConsoleError(data.stderr || "");
     } catch {
-      setConsoleError("Could not connect to companion server. Make sure it's running on port 3001.\n\nStart it with: npm run companion");
+      setConsoleError("[ERR] companion_offline @ :3001\n> start: npm run companion");
     } finally {
       setIsRunning(false);
     }
@@ -151,6 +192,13 @@ export default function ProblemPage() {
 
   const handleDebug = useCallback(async () => {
     if (!currentCode || isDebugRun) return;
+    setDebugNotice("");
+    if (language !== "python") {
+      stopDebugging();
+      setDebugNotice("[INFO] trace_engine: python_only. switch language=python for line-step debugger/variable watch.");
+      setBottomPanel("debugger");
+      return;
+    }
     setIsDebugRun(true);
     setBottomPanel("debugger");
     try {
@@ -160,29 +208,59 @@ export default function ProblemPage() {
         body: JSON.stringify({ language, code: currentCode, input: testInput }),
       });
       const data = await res.json();
-      if (data.ok && data.events?.length) {
+      if (data.ok && data.events.length) {
         setTrace(data.events as TraceEvent[]);
       } else {
-        setConsoleError(data.stderr || "Debug failed");
+        setDebugNotice(data.stderr || "[ERR] trace_failed. ensure code executes without fatal errors.");
+        stopDebugging();
       }
     } catch {
-      setConsoleError("Could not connect to companion server.");
+      setDebugNotice("[ERR] companion_offline @ :3001 (npm run companion)");
+      stopDebugging();
     } finally {
       setIsDebugRun(false);
     }
-  }, [currentCode, language, testInput, isDebugRun, setTrace, setBottomPanel]);
+  }, [currentCode, language, testInput, isDebugRun, setTrace, setBottomPanel, stopDebugging]);
+
+  useEffect(() => {
+    if (!isPlaying || !isDebugging) return;
+    const id = setInterval(() => {
+      const st = useDebuggerStore.getState();
+      if (st.currentStep >= st.trace.length - 1) { st.setPlaying(false); return; }
+      st.nextStep();
+    }, Math.max(120, 900 / Math.max(speed, 0.25)));
+    return () => clearInterval(id);
+  }, [isPlaying, isDebugging, speed]);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+    if (!editor || !monaco) return;
+    if (isDebugging && trace[currentStep] && trace[currentStep].line > 0) {
+      const line = trace[currentStep].line;
+      decorationsRef.current = editor.deltaDecorations(decorationsRef.current || [], [
+        {
+          range: new monaco.Range(line, 1, line, 1),
+          options: { isWholeLine: true, className: "debug-current-line", glyphMarginClassName: "debug-current-glyph" },
+        },
+      ]);
+      editor.revealLineInCenter(line);
+    } else {
+      decorationsRef.current = editor.deltaDecorations(decorationsRef.current || [], []);
+    }
+  }, [isDebugging, trace, currentStep]);
 
   const handleSaveNotes = useCallback(() => {
     if (slug) updateUserState(slug, { notes });
   }, [slug, notes, updateUserState]);
 
-  if (!problem) {
+  if (!problem || !detail) {
     return (
-      <div className="max-w-[1400px] mx-auto px-6 py-8">
+      <div className="max-w-[1400px] mx-auto px-6 py-8 font-mono">
         <div className="text-[var(--muted)]">
-          Problem not found.{" "}
-          <button onClick={() => router.push("/problems")} className="text-[var(--violet)] underline">
-            Go back
+          [ERR] problem_not_found. 
+          <button onClick={() => router.push("/problems")} className="text-[var(--text)] underline">
+            cd ..
           </button>
         </div>
       </div>
@@ -192,23 +270,23 @@ export default function ProblemPage() {
   const currentEvent = isDebugging && trace[currentStep] ? trace[currentStep] : null;
 
   return (
-    <div className="h-[calc(100vh-52px)] flex flex-col">
+    <div className="h-[calc(100vh-76px)] flex flex-col font-mono bg-[#080809]">
       {/* Top Bar */}
-      <div className="flex items-center gap-3 px-4 h-[44px] bg-[#0d1117] border-b border-[var(--border)] flex-shrink-0">
-        <button onClick={() => router.push("/problems")} className="text-[var(--muted)] hover:text-white">
+      <div className="flex items-center gap-2 px-3 h-[40px] bg-[#0f0f12] border-b border-[var(--border)] flex-shrink-0 text-[12px]">
+        <button onClick={() => router.push("/problems")} className="text-[var(--muted)] hover:text-[#ffffff]">
           <ArrowLeft size={18} />
         </button>
-        <span className="font-bold text-[14px]">#{problem.id}</span>
-        <span className="text-[14px] font-semibold text-white">{problem.title}</span>
+        <span className="font-bold text-[14px] font-mono">#{problem.id}</span>
+        <span className="text-[14px] font-semibold text-[var(--text)] font-mono">{problem.title}</span>
         <span
           className={cn(
-            "text-[11px] font-bold px-2.5 py-1 rounded-full border",
+            "text-[11px] font-bold px-2.5 py-1 rounded-[2px] border",
             difficultyBg(problem.difficulty),
             problem.difficulty === "Easy"
-              ? "text-emerald-400"
+              ? "text-[#d4d4d8]"
               : problem.difficulty === "Medium"
-              ? "text-amber-400"
-              : "text-red-400"
+              ? "text-[#a1a1aa]"
+              : "text-[#a1a1aa]"
           )}
         >
           {problem.difficulty}
@@ -216,19 +294,19 @@ export default function ProblemPage() {
 
         <div className="ml-auto flex items-center gap-2">
           {/* Language Switcher */}
-          <div className="flex border border-[var(--border)] rounded-lg overflow-hidden">
-            {(["java", "python"] as const).map((lang) => (
+          <div className="flex border border-[var(--border)] rounded-[2px] overflow-hidden">
+            {(["java", "python", "cpp"] as const).map((lang) => (
               <button
                 key={lang}
                 onClick={() => setLanguage(lang)}
                 className={cn(
-                  "px-3 py-1.5 text-[12px] font-semibold transition-colors capitalize",
+                  "px-3 py-1.5 text-[12px] font-semibold transition-colors",
                   language === lang
-                    ? "bg-[var(--violet)] text-white"
-                    : "bg-[#111827] text-[var(--muted)] hover:text-white"
+                    ? "bg-[#e5e5e7] text-[#050505]"
+                    : "bg-[#0f0f12] text-[var(--muted)] hover:text-[#ffffff]"
                 )}
               >
-                {lang}
+                {lang === "cpp" ? "C++" : lang.charAt(0).toUpperCase() + lang.slice(1)}
               </button>
             ))}
           </div>
@@ -237,9 +315,9 @@ export default function ProblemPage() {
             href={`https://leetcode.com/problems/${slug}/`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 px-2.5 py-1.5 text-[12px] text-[var(--muted)] hover:text-white"
+            className="flex items-center gap-1 px-2.5 py-1.5 text-[12px] text-[var(--muted)] hover:text-[#ffffff]"
           >
-            <ExternalLink size={13} /> LeetCode
+            <ExternalLink size={13} /> leetcode
           </a>
 
           <button
@@ -252,7 +330,7 @@ export default function ProblemPage() {
               size={16}
               className={
                 mounted && getUserState(slug).favorite
-                  ? "text-[var(--amber)] fill-[var(--amber)]"
+                  ? "text-[#d4d4d8] fill-[#d4d4d8]"
                   : "text-[var(--muted)]"
               }
             />
@@ -261,48 +339,48 @@ export default function ProblemPage() {
           <button
             onClick={handleRun}
             disabled={isRunning}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-bold bg-[var(--green)] text-[#070a11] rounded-lg hover:opacity-90 disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-bold bg-[#e5e5e7] text-[#050505] rounded-[2px] hover:opacity-90 disabled:opacity-50"
           >
-            <Play size={13} /> {isRunning ? "Running..." : "Run"}
+            <Play size={13} /> {isRunning ? "EXEC..." : "RUN"}
           </button>
 
           <button
             onClick={handleDebug}
             disabled={isDebugRun}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-bold bg-[var(--amber)] text-[#070a11] rounded-lg hover:opacity-90 disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-bold bg-[#e5e5e7] text-[#050505] rounded-[2px] hover:opacity-90 disabled:opacity-50"
           >
-            <Bug size={13} /> {isDebugRun ? "Starting..." : "Debug"}
+            <Bug size={13} /> {isDebugRun ? "TRACE..." : "DEBUG"}
           </button>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden min-h-0">
-        {/* Left Panel — Problem */}
-        <div className="w-[45%] min-w-[320px] border-r border-[var(--border)] overflow-y-auto bg-[#0a0f1a]">
+        {/* Left Panel â€” Problem */}
+        <div className="w-[45%] min-w-[320px] border-r border-[var(--border)] overflow-y-auto bg-[#080809]">
           <div className="p-5">
-            {/* Description */}
+            {/* DESCRIPTION */}
             <div className="mb-5">
-              <div className="text-[11px] font-extrabold tracking-[0.1em] uppercase text-[var(--violet)] mb-2">
-                Description
+              <div className="text-[11px] font-bold tracking-[0.14em] uppercase text-[var(--text)] mb-2 flex items-center gap-2 before:content-['>'] before:text-[var(--amber)]">
+                DESCRIPTION
               </div>
-              <div className="text-[13.5px] text-[#cbd5e1] leading-[1.75] whitespace-pre-wrap">
-                {detail?.description || "No description available."}
+              <div className="text-[13px] text-[var(--text)] leading-[1.7] whitespace-pre-wrap">
+                {detail.description || "[NO_DATA] description unavailable."}
               </div>
             </div>
 
-            {/* Examples */}
-            {detail?.examples && detail.examples.length > 0 && (
+            {/* EXAMPLES */}
+            {detail.examples && detail.examples.length > 0 && (
               <div className="mb-5">
-                <div className="text-[11px] font-extrabold tracking-[0.1em] uppercase text-[var(--violet)] mb-2">
-                  Examples
+                <div className="text-[11px] font-bold tracking-[0.14em] uppercase text-[var(--text)] mb-2 flex items-center gap-2 before:content-['>'] before:text-[var(--amber)]">
+                  EXAMPLES
                 </div>
                 {detail.examples.map((ex, i) => (
-                  <div key={i} className="border border-[var(--border)] rounded-lg p-3.5 mb-2.5 bg-[#111827]">
-                    <div className="text-[12px] font-bold text-white mb-1.5">Example {i + 1}</div>
+                  <div key={i} className="border border-[var(--border)] rounded-[2px] p-3.5 mb-2.5 bg-[#0f0f12]">
+                    <div className="text-[12px] font-bold text-[var(--text)] mb-1.5">example_{i + 1}</div>
                     <div className="text-[12px] font-mono">
-                      <div className="text-[var(--cyan)]">Input: {ex.input}</div>
-                      <div className="text-[var(--green)]">Output: {ex.output}</div>
+                      <div className="text-[var(--text)]">Input: {ex.input}</div>
+                      <div className="text-[var(--text)]">Output: {ex.output}</div>
                       {ex.explanation && (
                         <div className="text-[var(--muted)] mt-1">Explanation: {ex.explanation}</div>
                       )}
@@ -312,13 +390,13 @@ export default function ProblemPage() {
               </div>
             )}
 
-            {/* Constraints */}
-            {detail?.constraints && detail.constraints.length > 0 && (
+            {/* CONSTRAINTS */}
+            {detail.constraints && detail.constraints.length > 0 && (
               <div className="mb-5">
-                <div className="text-[11px] font-extrabold tracking-[0.1em] uppercase text-[var(--violet)] mb-2">
-                  Constraints
+                <div className="text-[11px] font-bold tracking-[0.14em] uppercase text-[var(--text)] mb-2 flex items-center gap-2 before:content-['>'] before:text-[var(--amber)]">
+                  CONSTRAINTS
                 </div>
-                <ul className="list-disc list-inside text-[13px] text-[#94a3b8] space-y-1">
+                <ul className="list-disc list-inside text-[13px] text-[var(--muted)] space-y-1">
                   {detail.constraints.map((c, i) => (
                     <li key={i}>{c}</li>
                   ))}
@@ -326,25 +404,25 @@ export default function ProblemPage() {
               </div>
             )}
 
-            {/* Hints */}
-            {detail?.hints && detail.hints.length > 0 && (
+            {/* HINTS */}
+            {detail.hints && detail.hints.length > 0 && (
               <div className="mb-5">
-                <div className="text-[11px] font-extrabold tracking-[0.1em] uppercase text-[var(--violet)] mb-2">
-                  Hints
+                <div className="text-[11px] font-bold tracking-[0.14em] uppercase text-[var(--text)] mb-2 flex items-center gap-2 before:content-['>'] before:text-[var(--amber)]">
+                  HINTS
                 </div>
                 {detail.hints.map((h, i) => (
                   <div key={i} className="mb-2">
-                    {showHints.includes(i) ? (
-                      <div className="text-[13px] text-[#cbd5e1] p-3 bg-[#111827] border border-[var(--border)] rounded-lg">
+                    {showHINTS.includes(i) ? (
+                      <div className="text-[13px] text-[var(--text)] p-3 bg-[#0f0f12] border border-[var(--border)] rounded-[2px]">
                         <Lightbulb size={14} className="text-[var(--amber)] inline mr-1.5" />
                         {h}
                       </div>
                     ) : (
                       <button
-                        onClick={() => setShowHints([...showHints, i])}
-                        className="text-[13px] text-[var(--violet)] hover:underline"
+                        onClick={() => setShowHINTS([...showHINTS, i])}
+                        className="text-[13px] text-[var(--text)] hover:text-[var(--text)] underline decoration-[rgba(255,255,255,0.24)]"
                       >
-                        Show Hint {i + 1}
+                        show_hint {i + 1}
                       </button>
                     )}
                   </div>
@@ -352,11 +430,11 @@ export default function ProblemPage() {
               </div>
             )}
 
-            {/* Approaches */}
-            {detail?.approaches && detail.approaches.length > 0 && (
+            {/* APPROACHES */}
+            {detail.approaches && detail.approaches.length > 0 && (
               <div className="mb-5">
-                <div className="text-[11px] font-extrabold tracking-[0.1em] uppercase text-[var(--violet)] mb-2">
-                  Approaches
+                <div className="text-[11px] font-bold tracking-[0.14em] uppercase text-[var(--text)] mb-2 flex items-center gap-2 before:content-['>'] before:text-[var(--amber)]">
+                  APPROACHES
                 </div>
                 <div className="flex gap-1.5 mb-3 flex-wrap">
                   {detail.approaches.map((a, i) => (
@@ -364,10 +442,10 @@ export default function ProblemPage() {
                       key={i}
                       onClick={() => setActiveApproach(i)}
                       className={cn(
-                        "px-3 py-1.5 text-[12px] font-semibold rounded-lg border transition-colors",
+                        "px-3 py-1.5 text-[12px] font-semibold rounded-[2px] border transition-colors",
                         activeApproach === i
-                          ? "bg-[var(--violet)]/15 text-[var(--violet)] border-[var(--violet)]/40"
-                          : "bg-[#111827] text-[var(--muted)] border-[var(--border)] hover:text-white"
+                          ? "bg-[rgba(255,255,255,0.07)] text-[var(--text)] border-[rgba(255,255,255,0.25)]"
+                          : "bg-[#0f0f12] text-[var(--muted)] border-[var(--border)] hover:text-[#ffffff]"
                       )}
                     >
                       {a.name}
@@ -375,23 +453,23 @@ export default function ProblemPage() {
                   ))}
                 </div>
                 {detail.approaches[activeApproach] && (
-                  <div className="border border-[var(--border)] rounded-lg p-4 bg-[#111827]">
-                    <div className="text-[14px] font-bold text-white mb-2">
+                  <div className="border border-[var(--border)] rounded-[2px] p-4 bg-[#0f0f12]">
+                    <div className="text-[14px] font-bold text-[var(--text)] mb-2">
                       {detail.approaches[activeApproach].name}
                     </div>
-                    <div className="text-[13px] text-[#cbd5e1] leading-relaxed mb-3">
+                    <div className="text-[13px] text-[var(--text)] leading-relaxed mb-3">
                       {detail.approaches[activeApproach].intuition}
                     </div>
                     <div className="flex gap-4 text-[12px] font-mono mb-3">
                       <span className="text-[var(--amber)]">
                         Time: {detail.approaches[activeApproach].timeComplexity}
                       </span>
-                      <span className="text-[var(--cyan)]">
+                      <span className="text-[var(--text)]">
                         Space: {detail.approaches[activeApproach].spaceComplexity}
                       </span>
                     </div>
-                    {detail.approaches[activeApproach].code?.[language] && (
-                      <pre className="text-[12px] font-mono text-[#94a3b8] bg-[#0a0f1a] p-3 rounded-lg overflow-x-auto">
+                    {detail.approaches[activeApproach].code[language] && (
+                      <pre className="text-[12px] font-mono text-[var(--muted)] bg-[#080809] p-3 rounded-[2px] overflow-x-auto">
                         {detail.approaches[activeApproach].code[language]}
                       </pre>
                     )}
@@ -401,12 +479,12 @@ export default function ProblemPage() {
             )}
 
             {/* Solution Markdown */}
-            {detail?.solutionMarkdown && (
+            {detail.solutionMarkdown && (
               <div className="mb-5">
-                <div className="text-[11px] font-extrabold tracking-[0.1em] uppercase text-[var(--violet)] mb-2">
-                  Editorial Solution
+                <div className="text-[11px] font-bold tracking-[0.14em] uppercase text-[var(--text)] mb-2 flex items-center gap-2 before:content-['>'] before:text-[var(--amber)]">
+                  EDITORIAL_SOLUTION
                 </div>
-                <div className="text-[13px] text-[#94a3b8] p-3 bg-[#111827] border border-[var(--border)] rounded-lg whitespace-pre-wrap">
+                <div className="text-[13px] text-[var(--muted)] p-3 bg-[#0f0f12] border border-[var(--border)] rounded-[2px] whitespace-pre-wrap">
                   {detail.solutionMarkdown}
                 </div>
               </div>
@@ -414,14 +492,18 @@ export default function ProblemPage() {
           </div>
         </div>
 
-        {/* Right Panel — Editor */}
-        <div className="flex-1 flex flex-col min-w-0">
+        {/* Right Panel â€” Editor */}
+        <div className="flex-1 flex flex-col min-w-0 bg-[#080809] border-l border-[var(--border)]">
           <Editor
             height="100%"
-            language={language === "java" ? "java" : "python"}
+            language={language === "cpp" ? "cpp" : language}
             theme="vs-dark"
             value={currentCode}
             onChange={handleCodeChange}
+            onMount={(editor, monaco) => {
+              editorRef.current = editor;
+              monacoRef.current = monaco;
+            }}
             options={{
               fontSize,
               minimap: { enabled: true },
@@ -430,25 +512,26 @@ export default function ProblemPage() {
               automaticLayout: true,
               tabSize: 4,
               wordWrap: "on",
+              glyphMargin: true,
             }}
           />
         </div>
       </div>
 
       {/* Bottom Panel */}
-      <div className="h-[250px] border-t border-[var(--border)] bg-[#0a0f1a] flex flex-col flex-shrink-0">
+      <div className="h-[320px] border-t border-[var(--border)] bg-[#080809] flex flex-col flex-shrink-0">
         {/* Tabs */}
-        <div className="flex items-center gap-1 px-3 h-[36px] bg-[#0d1117] border-b border-[var(--border)] flex-shrink-0">
+        <div className="flex items-center gap-1 px-2 h-[34px] bg-[#0f0f12] border-b border-[var(--border)] flex-shrink-0">
           {(["tests", "console", "debugger", "visualizer", "notes", "attempts"] as BottomTab[]).map(
             (tab) => (
               <button
                 key={tab}
                 onClick={() => setBottomPanel(tab)}
                 className={cn(
-                  "px-3 py-1.5 text-[12px] font-semibold rounded-md transition-colors capitalize",
+                  "px-3 py-1 text-[11px] font-semibold rounded-[2px] transition-colors uppercase tracking-widest",
                   bottomPanel === tab
-                    ? "bg-[var(--violet)]/15 text-[var(--violet)]"
-                    : "text-[var(--muted)] hover:text-white"
+                    ? "bg-[rgba(255,255,255,0.07)] text-[var(--text)]"
+                    : "text-[var(--muted)] hover:text-[#ffffff]"
                 )}
               >
                 {tab}
@@ -456,48 +539,35 @@ export default function ProblemPage() {
             )
           )}
           {isDebugging && (
-            <div className="ml-auto flex items-center gap-1.5">
-              <button onClick={restart} className="px-2 py-1 text-[11px] text-[var(--muted)] hover:text-white" title="Restart">
-                ↻
-              </button>
-              <button onClick={prevStep} className="px-2 py-1 text-[11px] text-[var(--muted)] hover:text-white" title="Previous">
-                ◀
-              </button>
-              <span className="text-[11px] font-mono text-[var(--muted)]">
-                {currentStep + 1}/{trace.length}
-              </span>
-              <button onClick={nextStep} className="px-2 py-1 text-[11px] text-[var(--muted)] hover:text-white" title="Next">
-                ▶
-              </button>
-              <button onClick={stopDebugging} className="px-2 py-1 text-[11px] text-red-400 hover:text-red-300" title="Stop">
-                ⏹
-              </button>
+            <div className="ml-auto flex items-center gap-2 text-[11px] text-[var(--muted)]">
+              <span className="font-mono">Step {currentStep + 1}/{trace.length}</span>
+              <button onClick={stopDebugging} className="px-2 py-1 rounded text-[#a1a1aa] hover:bg-red-500/10" title="Stop debug">KILL</button>
             </div>
           )}
         </div>
 
         {/* Panel Content */}
-        <div className="flex-1 overflow-auto p-3">
+        <div className="flex-1 overflow-auto p-3 bg-[#080809]">
           {bottomPanel === "tests" && (
             <div>
               <div className="flex gap-2 mb-2">
                 <input
                   type="text"
-                  placeholder="Test input (stdin)..."
+                  placeholder="stdin_buffer..."
                   value={testInput}
                   onChange={(e) => setTestInput(e.target.value)}
-                  className="flex-1 px-3 py-2 text-[13px] font-mono bg-[#111827] border border-[var(--border)] rounded-lg text-white outline-none focus:border-[var(--violet)]/50"
+                  className="flex-1 px-3 py-2 text-[13px] font-mono bg-[#0f0f12] border border-[var(--border)] rounded-[2px] text-[var(--text)] outline-none focus:border-[var(--border-bright)]"
                 />
                 <button
                   onClick={handleRun}
                   disabled={isRunning}
-                  className="px-3 py-2 text-[12px] font-bold bg-[var(--green)] text-[#070a11] rounded-lg disabled:opacity-50"
+                  className="px-3 py-2 text-[12px] font-bold bg-[#e5e5e7] text-[#050505] rounded-[2px] disabled:opacity-50"
                 >
-                  {isRunning ? "Running..." : "Run Test"}
+                  {isRunning ? "EXEC..." : "RUN"}
                 </button>
               </div>
               <div className="text-[12px] text-[var(--muted)]">
-                Enter input for stdin and click Run Test. For arrays, enter each element on a new line.
+                &gt; provide stdin buffer for execution. programs using input()/Scanner/cin read from here.
               </div>
             </div>
           )}
@@ -505,67 +575,195 @@ export default function ProblemPage() {
           {bottomPanel === "console" && (
             <div className="font-mono text-[12px]">
               {consoleOutput && (
-                <div className="text-[var(--green)] whitespace-pre-wrap">{consoleOutput}</div>
+                <div className="text-[var(--text)] whitespace-pre-wrap">{consoleOutput}</div>
               )}
               {consoleError && (
-                <div className="text-red-400 whitespace-pre-wrap">{consoleError}</div>
+                <div className="text-[#a1a1aa] whitespace-pre-wrap mt-1">{consoleError}</div>
               )}
               {!consoleOutput && !consoleError && (
-                <div className="text-[var(--muted)]">Run your code to see output here.</div>
+                <div className="text-[var(--muted)]">&gt; stdout/stderr empty. execute `run` to capture output.</div>
               )}
             </div>
           )}
 
           {bottomPanel === "debugger" && (
-            <div className="font-mono text-[12px]">
-              {currentEvent ? (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <div className="text-[11px] font-bold text-[var(--violet)] uppercase tracking-wider mb-1">
-                      Current Line
-                    </div>
-                    <div className="text-white">
-                      Line {currentEvent.line} in {currentEvent.fn}
-                    </div>
-                    <div className="text-[11px] font-bold text-[var(--violet)] uppercase tracking-wider mt-3 mb-1">
-                      Variables
-                    </div>
-                    <div className="space-y-1">
-                      {Object.entries(currentEvent.vars || {}).map(([k, v]) => (
-                        <div key={k} className="flex gap-2">
-                          <span className="text-[var(--amber)]">{k}:</span>
-                          <span className="text-white">{JSON.stringify(v)}</span>
-                        </div>
-                      ))}
-                    </div>
+            <div className="text-[12px] h-full">
+              {!isDebugging && !trace.length ? (
+                <div className="space-y-3">
+                  <div className="text-[13px] font-semibold text-[var(--text)]">TRACE_DEBUGGER // step_exec</div>
+                  <div className="text-[var(--muted)] leading-relaxed">
+                    &gt; press <span className="text-[var(--text)] font-semibold">DEBUG</span> to execute with line-level trace capture. inspect current line, locals, and delta per step.
                   </div>
-                  <div>
-                    <div className="text-[11px] font-bold text-[var(--violet)] uppercase tracking-wider mb-1">
-                      Call Stack
-                    </div>
-                    <div className="text-white">depth: {currentEvent.depth}</div>
+                  <div className="p-3 rounded-[2px] border border-[var(--border)] bg-[#0f0f12] text-[var(--muted)] space-y-1">
+                    <div>- engine: <span className="text-[var(--text)]">python tracer</span> (supported)</div>
+                    <div>- ui: active source line highlighted in editor</div>
+                    <div>- controls: play/step/prev/restart/speed</div>
                   </div>
+                  {debugNotice && (
+                    <div className="p-3 rounded-[2px] border border-[var(--border-bright)] bg-[rgba(255,255,255,0.04)] text-[#d4d4d8] whitespace-pre-wrap">{debugNotice}</div>
+                  )}
                 </div>
               ) : (
-                <div className="text-[var(--muted)]">
-                  {isDebugging
-                    ? "Trace loaded. Use controls to step through."
-                    : "Click Debug to start tracing your code."}
-                </div>
+                (() => {
+                  const ev = trace[currentStep];
+                  const codeLines = (currentCode || "").split("\n");
+                  const lineNo = ev.line || 0;
+                  const start = Math.max(1, lineNo - 2);
+                  const end = Math.min(codeLines.length, lineNo + 2);
+                  const prevEv = currentStep > 0 ? trace[currentStep - 1] : null;
+                  const currVars = ev.vars || {};
+                  const prevVars = prevEv?.vars || {};
+                  const changedKeys = Object.keys(currVars).filter((k) => JSON.stringify(currVars[k]) !== JSON.stringify(prevVars[k]));
+                  const isErrorEvent = !!(ev && ((ev as any).error || ev.type === "exception" || (currVars as any).error));
+                  return (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center gap-2 p-2 rounded-[2px] border border-[var(--border)] bg-[#0f0f12]">
+                        <button onClick={restart} className="p-1.5 rounded hover:bg-white/10 text-[var(--muted)] hover:text-[#ffffff]" title="restart trace"><RotateCcw size={14} /></button>
+                        <button onClick={prevStep} disabled={currentStep <= 0} className="p-1.5 rounded hover:bg-white/10 text-[var(--muted)] hover:text-[#ffffff] disabled:opacity-30" title="step back"><SkipBack size={14} /></button>
+                        <button onClick={() => setPlaying(!isPlaying)} disabled={!trace.length || currentStep >= trace.length - 1} className="px-2.5 py-1.5 rounded bg-[#e5e5e7] text-[var(--text)] text-[11px] font-bold flex items-center gap-1 disabled:opacity-40" title="play/pause">
+                          {isPlaying ? <Pause size={12} /> : <Play size={12} />} {isPlaying ? "PAUSE" : "PLAY"}
+                        </button>
+                        <button onClick={nextStep} disabled={currentStep >= trace.length - 1} className="p-1.5 rounded hover:bg-white/10 text-[var(--muted)] hover:text-[#ffffff] disabled:opacity-30" title="step forward"><SkipForward size={14} /></button>
+                        <button onClick={stopDebugging} className="p-1.5 rounded hover:bg-[rgba(255,255,255,0.08)] text-[#a1a1aa]" title="kill trace"><Square size={14} /></button>
+                        <div className="flex items-center gap-2 ml-2">
+                          <span className="text-[var(--muted)]">Speed</span>
+                          <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))} className="bg-[#080809] border border-[var(--border)] rounded px-2 py-1 text-[var(--text)] text-[11px]">
+                            <option value={0.5}>0.5x</option>
+                            <option value={1}>1x</option>
+                            <option value={1.5}>1.5x</option>
+                            <option value={2}>2x</option>
+                          </select>
+                        </div>
+                        <div className="ml-auto font-mono text-[var(--muted)]">Step {Math.min(currentStep + 1, trace.length)} / {trace.length}</div>
+                      </div>
+
+                      <div className="w-full h-1.5 bg-[#0f0f12] rounded overflow-hidden">
+                        <div className="h-full bg-[#e5e5e7]" style={{ width: `${trace.length ? ((currentStep + 1) / trace.length) * 100 : 0}%` }} />
+                      </div>
+
+                      {debugNotice && !ev && (
+                        <div className="p-3 rounded-[2px] border border-[var(--border-bright)] bg-[rgba(255,255,255,0.04)] text-[#d4d4d8] whitespace-pre-wrap">{debugNotice}</div>
+                      )}
+
+                      {ev && (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                          <div className="space-y-3">
+                            <div className="p-3 rounded-[2px] border border-[var(--border)] bg-[#0f0f12]">
+                              <div className="text-[11px] font-extrabold uppercase tracking-wider text-[var(--text)] mb-1">EXEC_STATE</div>
+                              <div className="text-[var(--text)] text-[13px] font-semibold">
+                                {isErrorEvent ? "[EXCEPTION] trace interrupted" : lineNo > 0 ? `Running line ${lineNo} in ${ev.fn || "<module>"}` : `Step ${currentStep + 1}`}
+                              </div>
+                              <div className="text-[var(--muted)] mt-1">
+                                {isErrorEvent ? "> inspect error payload, patch source, re-run trace."
+                                  : ev.type === "return" ? "event=return -- unwinding to caller frame."
+                                  : ev.type === "call" ? "event=call -- entering new frame."
+                                  : "event=line -- statement executed; diff locals vs previous step."}
+                              </div>
+                              {changedKeys.length > 0 && (
+                                <div className="mt-2 text-[11px] text-[var(--text)]">delta: {changedKeys.join(", ")}</div>
+                              )}
+                            </div>
+
+                            <div className="p-3 rounded-[2px] border border-[var(--border)] bg-[#0f0f12]">
+                              <div className="text-[11px] font-extrabold uppercase tracking-wider text-[var(--text)] mb-2">SOURCE_CONTEXT</div>
+                              {lineNo > 0 ? (
+                                <div className="font-mono text-[12px] space-y-0.5">
+                                  {Array.from({ length: end - start + 1 }, (_, i) => start + i).map((ln) => (
+                                    <div key={ln} className={cn("px-2 py-0.5 rounded flex gap-2", ln === lineNo ? "bg-[rgba(255,255,255,0.11)] text-[var(--text)]" : "text-[var(--muted)]")}>
+                                      <span className="w-8 text-right text-[var(--dim)] select-none">{ln}</span>
+                                      <span className="whitespace-pre">{codeLines[ln - 1] ?? ""}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="text-[var(--muted)]">[no line metadata]</div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            <div className="p-3 rounded-[2px] border border-[var(--border)] bg-[#0f0f12]">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="text-[11px] font-extrabold uppercase tracking-wider text-[var(--text)]">LOCALS_WATCH</div>
+                                <div className="text-[11px] text-[var(--muted)]">stack_depth={ev.depth ?? 0}</div>
+                              </div>
+                              {isErrorEvent && (currVars as any).error ? (
+                                <div className="text-[#d4d4d8] whitespace-pre-wrap font-mono">{String((currVars as any).error)}</div>
+                              ) : Object.keys(currVars).length ? (
+                                <div className="space-y-1.5 max-h-[220px] overflow-auto pr-1">
+                                  {Object.entries(currVars).map(([k, v]) => (
+                                    <div key={k} className={cn("rounded px-2 py-1.5 border", changedKeys.includes(k) ? "border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.04)]" : "border-[var(--border)] bg-[#080809]")}>
+                                      <div className="flex items-start gap-2">
+                                        <span className="text-[var(--text)] font-mono font-semibold">{k}</span>
+                                        <span className="text-[#e2e8f0] font-mono break-all">{formatSlimValue(v)}</span>
+                                      </div>
+                                      {slimArrayItems(v) && (
+                                        <div className="mt-1.5 flex flex-wrap gap-1">
+                                          {(slimArrayItems(v) || []).slice(0, 24).map((item, i) => (
+                                            <span key={i} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-[var(--border)] bg-[#0f0f12] text-[10px] font-mono">
+                                              <span className="text-[var(--dim)]">{i}:</span>
+                                              <span className="text-[var(--text)]">{formatSlimValue(item)}</span>
+                                            </span>
+                                          ))}
+                                          {(slimArrayItems(v) || []).length > 24 && <span className="text-[10px] text-[var(--muted)]"></span>}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="text-[var(--muted)]">[empty] no locals captured</div>
+                              )}
+                            </div>
+
+                            <div className="p-3 rounded-[2px] border border-[var(--border)] bg-[#0f0f12]">
+                              <div className="text-[11px] font-extrabold uppercase tracking-wider text-[var(--text)] mb-1">READ_ME</div>
+                              <div className="text-[var(--muted)] space-y-1">
+                                <div>- line: last executed source line</div>
+                                <div>- vars: post-step values (delta highlighted)</div>
+                                <div>- arrays: rendered as index:value cells</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()
               )}
             </div>
           )}
 
           {bottomPanel === "visualizer" && (
-            <div className="text-[var(--muted)] text-[13px]">
-              {currentEvent ? (
-                <VisualizerPanel
-                  trace={trace}
-                  currentStep={currentStep}
-                  variables={currentEvent.vars}
-                />
+            <div className="text-[13px] h-full">
+              {isDebugging && trace[currentStep] ? (
+                <div className="space-y-3">
+                  <VisualizerPanel
+                    trace={trace}
+                    currentStep={currentStep}
+                    variables={trace[currentStep].vars || {}}
+                  />
+                  <div className="p-3 rounded-[2px] border border-[var(--border)] bg-[#0f0f12]">
+                    <div className="text-[11px] font-extrabold uppercase tracking-wider text-[var(--text)] mb-2">LOCALS_DUMP</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {Object.entries(trace[currentStep].vars || {}).map(([k, v]) => (
+                        <div key={k} className="rounded border border-[var(--border)] bg-[#080809] p-2">
+                          <div className="text-[var(--text)] font-mono text-[12px] font-semibold mb-1">{k}</div>
+                          <div className="text-[var(--text)] font-mono text-[12px] break-all">{formatSlimValue(v)}</div>
+                        </div>
+                      ))}
+                      {Object.keys(trace[currentStep].vars || {}).length === 0 && (
+                        <div className="text-[var(--muted)]">[empty]</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               ) : (
-                <div>Start debugging to see algorithm visualizations.</div>
+                <div className="space-y-2 text-[var(--muted)]">
+                  <div className="text-[var(--text)] font-semibold">ALGO_VISUALIZER</div>
+                  <div>&gt; run <span className="text-[var(--text)]">DEBUG</span> (python) to stream trace into structure visualizers.</div>
+                  {debugNotice && <div className="p-3 rounded-[2px] border border-[var(--border-bright)] bg-[rgba(255,255,255,0.04)] text-[#d4d4d8] whitespace-pre-wrap">{debugNotice}</div>}
+                </div>
               )}
             </div>
           )}
@@ -575,15 +773,15 @@ export default function ProblemPage() {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               onBlur={handleSaveNotes}
-              placeholder="Write your notes about this problem..."
-              className="w-full h-full bg-transparent text-[13px] text-[#cbd5e1] outline-none resize-none placeholder:text-[#475569]"
+              placeholder="# notes.md -- scratchpad / approach / pitfalls..."
+              className="w-full h-full bg-transparent text-[13px] text-[var(--text)] outline-none resize-none placeholder:text-[var(--dim)]"
             />
           )}
 
           {bottomPanel === "attempts" && (
             <div className="text-[var(--muted)] text-[13px]">
               {mounted && getUserState(slug).attempts.length === 0 ? (
-                <div>No attempts yet. Run your code to track attempts.</div>
+                <div>[EMPTY] no attempt records. run code to append history.</div>
               ) : (
                 mounted &&
                 getUserState(slug).attempts.map((a) => (
@@ -594,7 +792,7 @@ export default function ProblemPage() {
                     <span
                       className={cn(
                         "text-[11px] font-bold",
-                        a.result === "passed" ? "text-[var(--green)]" : "text-red-400"
+                        a.result === "passed" ? "text-[var(--text)]" : "text-[#a1a1aa]"
                       )}
                     >
                       {a.result}
