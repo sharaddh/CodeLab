@@ -32,8 +32,8 @@ const statusIcons: Record<string, typeof CheckCircle> = {
 
 const statusColors: Record<string, string> = {
   solved: "text-[var(--green)]",
-  reviewed: "text-[var(--cyan)]",
-  mastered: "text-[var(--violet)]",
+  reviewed: "text-[var(--text)]",
+  mastered: "text-[var(--muted)]",
   attempted: "text-[var(--amber)]",
 };
 
