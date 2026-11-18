@@ -54,7 +54,7 @@ export function SearchInput({
         onKeyDown={onKeyDown}
         placeholder={placeholder}
         autoFocus={autoFocus}
-        className="w-full pl-8 pr-8 py-2 rounded-lg border border-[var(--border)] bg-[var(--panel)] text-[var(--text)] text-[13px] placeholder:text-[#475569] focus:outline-none focus:border-[var(--violet)]/50 focus:ring-1 focus:ring-[var(--violet)]/25 transition-colors"
+        className="w-full pl-8 pr-8 py-2 rounded-lg border border-[var(--border)] bg-[var(--panel)] text-[var(--text)] text-[13px] placeholder:text-[#475569] focus:outline-none focus:border-[var(--muted)]/50 focus:ring-1 focus:ring-[var(--muted)]/25 transition-colors"
       />
       {local && (
         <button
