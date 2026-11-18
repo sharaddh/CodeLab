@@ -40,7 +40,7 @@ export function QueueVisualizer({ trace, currentStep, variables }: QueueVisualiz
     <div className="p-4 overflow-x-auto">
       <div className="flex items-center gap-1" style={{ minWidth: queue.length * (cellWidth + 8) + 80 }}>
         {/* Front label */}
-        <div className="text-[10px] text-[var(--cyan)] font-bold mr-1">FRONT →</div>
+        <div className="text-[10px] text-[var(--text)] font-bold mr-1">FRONT →</div>
 
         {queue.map((val, idx) => {
           const isFront = idx === 0;
@@ -55,9 +55,9 @@ export function QueueVisualizer({ trace, currentStep, variables }: QueueVisualiz
               style={{
                 width: cellWidth,
                 height: 36,
-                backgroundColor: isFront ? "#22d3ee15" : isRear ? "#f59e0b15" : "#111827",
-                borderColor: isFront ? "#22d3ee" : isRear ? "#f59e0b" : "#273247",
-                color: isFront ? "#22d3ee" : isRear ? "#f59e0b" : "#e2e8f0",
+                backgroundColor: isFront ? "#a1a1aa15" : isRear ? "#f59e0b15" : "#111827",
+                borderColor: isFront ? "#a1a1aa" : isRear ? "#f59e0b" : "#273247",
+                color: isFront ? "#a1a1aa" : isRear ? "#f59e0b" : "#e2e8f0",
               }}
             >
               {val}
