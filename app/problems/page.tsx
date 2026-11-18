@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Crown, CheckCheck, CheckCircle2 } from "lucide-react";
+import { Search, Crown, CheckCircle2 } from "lucide-react";
 import { useFilteredProblems, useTopics, useProblems, isCurated } from "@/lib/hooks/use-problems";
 import { useProblemStore } from "@/lib/stores/problem-store";
 import { cn, difficultyBg, formatNumber } from "@/lib/utils";
@@ -63,132 +63,106 @@ export default function ProblemsPage() {
     : 0;
 
   return (
-    <div className="max-w-[1400px] mx-auto px-6 py-6">
-      {/* Toolbar */}
-      <div className="sticky top-[52px] z-10 flex gap-2 flex-wrap items-center p-2.5 bg-[#0d1117]/90 border border-[var(--border)] backdrop-blur-xl rounded-xl mb-4">
-        {/* Search */}
-        <div className="relative flex-1 min-w-[200px]">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b]" />
+    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-5 font-mono">
+      <div className="mb-4 border border-[var(--border)] bg-[var(--panel)]">
+        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[var(--border)] bg-[#0f0f12] text-[11px] text-[var(--muted)] uppercase tracking-widest">
+          <span className="text-[#d4d4d8]">*</span><span className="text-[#a1a1aa]">*</span><span className="text-[#71717a]">*</span>
+          <span className="ml-2">~/problems -- query_engine</span>
+        </div>
+        <div className="p-4 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+          <div>
+            <div className="text-[12px] text-[var(--muted)] mb-1"><span className="text-[var(--text)]">user@lc-lab</span>:<span className="text-[var(--muted)]">~</span>$ ./problems --interactive --index</div>
+            <h1 className="text-[30px] leading-none font-[family-name:var(--font-terminal)] text-[var(--text)] tracking-wider">PROBLEM_DATABASE</h1>
+            <p className="text-[12px] text-[var(--muted)] mt-1">filter, sort, and open problem workspaces. records: {formatNumber(filtered.length)} shown</p>
+          </div>
+          <div className="text-[11px] text-[var(--dim)] border border-[var(--border)] px-3 py-2 bg-[#0a0a0c]">
+            <div>reviewed: <span className="text-[var(--text)]">{reviewedCount}</span></div>
+            <div>mode: <span className="text-[var(--muted)]">QUERY</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div className="sticky top-[76px] z-10 flex gap-2 flex-wrap items-center p-2.5 bg-[rgba(8,8,10,0.97)] border border-[var(--border)] backdrop-blur-md mb-4">
+        <div className="text-[10px] text-[var(--dim)] uppercase tracking-widest mr-1 hidden md:block">&gt; filters</div>
+        <div className="relative flex-1 min-w-[220px]">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--dim)]" />
           <input
             type="text"
-            placeholder="Search id, title, topic or company..."
+            placeholder="grep id|title|topic|company..."
             value={q}
             onChange={(e) => { setQ(e.target.value); setShownCount(ITEMS_PER_PAGE); }}
-            className="w-full pl-10 pr-3 py-2.5 border border-[var(--border)] rounded-lg bg-[#0a0f1a] text-white text-[13px] outline-none focus:border-[var(--violet)]/50"
+            className="w-full pl-9 pr-3 py-2 border border-[var(--border)] bg-[#0a0a0c] text-[13px] outline-none"
           />
         </div>
 
-        {/* Filters */}
-        <select
-          value={difficulty}
-          onChange={(e) => { setDifficulty(e.target.value); setShownCount(ITEMS_PER_PAGE); }}
-          className="px-3 py-2.5 border border-[var(--border)] rounded-lg bg-[#0a0f1a] text-white text-[13px] max-w-[160px]"
-        >
-          <option value="all">All difficulty</option>
-          <option value="Easy">Easy</option>
-          <option value="Medium">Medium</option>
-          <option value="Hard">Hard</option>
+        <select value={difficulty} onChange={(e) => { setDifficulty(e.target.value); setShownCount(ITEMS_PER_PAGE); }} className="px-3 py-2 border border-[var(--border)] bg-[#0a0a0c] text-[12px] max-w-[160px]">
+          <option value="all">diff: all</option>
+          <option value="Easy">diff: easy</option>
+          <option value="Medium">diff: medium</option>
+          <option value="Hard">diff: hard</option>
         </select>
 
-        <select
-          value={topic}
-          onChange={(e) => { setTopic(e.target.value); setShownCount(ITEMS_PER_PAGE); }}
-          className="px-3 py-2.5 border border-[var(--border)] rounded-lg bg-[#0a0f1a] text-white text-[13px] max-w-[160px]"
-        >
-          <option value="all">All topics</option>
-          {topics.map((t) => (
-            <option key={t} value={t}>{t}</option>
-          ))}
+        <select value={topic} onChange={(e) => { setTopic(e.target.value); setShownCount(ITEMS_PER_PAGE); }} className="px-3 py-2 border border-[var(--border)] bg-[#0a0a0c] text-[12px] max-w-[170px]">
+          <option value="all">topic: all</option>
+          {topics.map((t) => (<option key={t} value={t}>topic: {t}</option>))}
         </select>
 
-        <select
-          value={company}
-          onChange={(e) => { setCompany(e.target.value); setShownCount(ITEMS_PER_PAGE); }}
-          className="px-3 py-2.5 border border-[var(--border)] rounded-lg bg-[#0a0f1a] text-white text-[13px] max-w-[160px]"
-        >
-          <option value="all">All companies</option>
-          {companies.map((c) => (
-            <option key={c.name} value={c.name}>{c.name}</option>
-          ))}
+        <select value={company} onChange={(e) => { setCompany(e.target.value); setShownCount(ITEMS_PER_PAGE); }} className="px-3 py-2 border border-[var(--border)] bg-[#0a0a0c] text-[12px] max-w-[170px]">
+          <option value="all">company: all</option>
+          {companies.map((c) => (<option key={c.name} value={c.name}>co: {c.name}</option>))}
         </select>
 
-        <select
-          value={status}
-          onChange={(e) => { setStatus(e.target.value); setShownCount(ITEMS_PER_PAGE); }}
-          className="px-3 py-2.5 border border-[var(--border)] rounded-lg bg-[#0a0f1a] text-white text-[13px]"
-        >
-          <option value="all">Status: All</option>
-          <option value="reviewed">Reviewed</option>
-          <option value="not">Not reviewed</option>
+        <select value={status} onChange={(e) => { setStatus(e.target.value); setShownCount(ITEMS_PER_PAGE); }} className="px-3 py-2 border border-[var(--border)] bg-[#0a0a0c] text-[12px]">
+          <option value="all">status: all</option>
+          <option value="reviewed">status: reviewed</option>
+          <option value="not">status: not_reviewed</option>
         </select>
 
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value)}
-          className="px-3 py-2.5 border border-[var(--border)] rounded-lg bg-[#0a0f1a] text-white text-[13px]"
-        >
-          <option value="id">Sort: ID</option>
-          <option value="freq">Sort: Frequency</option>
+        <select value={sort} onChange={(e) => setSort(e.target.value)} className="px-3 py-2 border border-[var(--border)] bg-[#0a0a0c] text-[12px]">
+          <option value="id">sort: id</option>
+          <option value="freq">sort: freq</option>
         </select>
 
         <button
           onClick={() => { setPremium(!premium); setShownCount(ITEMS_PER_PAGE); }}
           className={cn(
-            "px-3 py-2.5 rounded-lg border text-[13px] font-medium transition-colors",
+            "px-3 py-2 border text-[12px] font-semibold transition-colors uppercase tracking-wide",
             premium
-              ? "bg-[var(--amber)]/10 text-[var(--amber)] border-[var(--amber)]/50"
-              : "bg-[#0a0f1a] text-[var(--muted)] border-[var(--border)] hover:text-white"
+              ? "bg-[#e5e5e7] text-[#050505] border-[#e5e5e7]"
+              : "bg-[#0a0a0c] text-[var(--muted)] border-[var(--border)] hover:text-[var(--text)]"
           )}
         >
-          Premium
+          premium
         </button>
       </div>
 
-      {/* Stats Bar */}
       <div className="flex gap-2 flex-wrap mb-4">
-        <div className="border border-[var(--border)] bg-[var(--panel)] rounded-xl px-3.5 py-2.5">
-          <div className="text-[17px] font-bold font-mono">{formatNumber(filtered.length)}</div>
-          <div className="text-[10px] text-[var(--muted)] uppercase tracking-wider font-semibold">shown</div>
-        </div>
-        <div className="border border-[var(--border)] bg-[var(--panel)] rounded-xl px-3.5 py-2.5">
-          <div className="text-[17px] font-bold font-mono text-emerald-400">
-            {filtered.filter((p) => p.difficulty === "Easy").length}
+        {[
+          { label: "SHOWN", value: formatNumber(filtered.length), color: "text-[var(--text)]" },
+          { label: "EASY", value: filtered.filter((p) => p.difficulty === "Easy").length, color: "text-[#d4d4d8]" },
+          { label: "MED", value: filtered.filter((p) => p.difficulty === "Medium").length, color: "text-[#a1a1aa]" },
+          { label: "HARD", value: filtered.filter((p) => p.difficulty === "Hard").length, color: "text-[#71717a]" },
+          { label: "REVIEWED", value: reviewedCount, color: "text-[var(--text)]" },
+        ].map((s) => (
+          <div key={s.label} className="border border-[var(--border)] bg-[var(--panel)] px-3 py-2 min-w-[90px]">
+            <div className={cn("text-[18px] leading-none font-[family-name:var(--font-terminal)]", s.color)}>{s.value}</div>
+            <div className="text-[10px] text-[var(--muted)] uppercase tracking-widest">{s.label}</div>
           </div>
-          <div className="text-[10px] text-[var(--muted)] uppercase tracking-wider font-semibold">easy</div>
-        </div>
-        <div className="border border-[var(--border)] bg-[var(--panel)] rounded-xl px-3.5 py-2.5">
-          <div className="text-[17px] font-bold font-mono text-amber-400">
-            {filtered.filter((p) => p.difficulty === "Medium").length}
-          </div>
-          <div className="text-[10px] text-[var(--muted)] uppercase tracking-wider font-semibold">medium</div>
-        </div>
-        <div className="border border-[var(--border)] bg-[var(--panel)] rounded-xl px-3.5 py-2.5">
-          <div className="text-[17px] font-bold font-mono text-red-400">
-            {filtered.filter((p) => p.difficulty === "Hard").length}
-          </div>
-          <div className="text-[10px] text-[var(--muted)] uppercase tracking-wider font-semibold">hard</div>
-        </div>
-        <div className="border border-[var(--border)] bg-[var(--panel)] rounded-xl px-3.5 py-2.5">
-          <div className="text-[17px] font-bold font-mono text-[var(--cyan)]">{reviewedCount}</div>
-          <div className="text-[10px] text-[var(--muted)] uppercase tracking-wider font-semibold">reviewed</div>
-        </div>
+        ))}
       </div>
 
-      {/* Problem Table */}
-      <div className="border border-[var(--border)] rounded-xl overflow-hidden bg-[#0a0f1a]">
-        {/* Header */}
-        <div className="grid grid-cols-[60px_1fr_70px_80px_110px_110px] items-center gap-2.5 px-4 bg-[#0d1117] min-h-[40px] text-[11.5px] text-[#64748b] uppercase tracking-wider font-semibold">
-          <span>No.</span>
-          <span>Title</span>
-          <span>Solution</span>
-          <span>Freq</span>
-          <span>Difficulty</span>
-          <span></span>
+      <div className="border border-[var(--border)] overflow-hidden bg-[#080809]">
+        <div className="grid grid-cols-[60px_1fr_70px_80px_110px_120px] items-center gap-2.5 px-4 bg-[#0f0f12] min-h-[38px] text-[10px] text-[var(--muted)] uppercase tracking-[0.16em] border-b border-[var(--border)]">
+          <span>ID</span>
+          <span>TITLE / TAGS</span>
+          <span>SOL</span>
+          <span>FREQ</span>
+          <span>DIFF</span>
+          <span>STATE</span>
         </div>
 
-        {/* Rows */}
         {shown.length === 0 ? (
-          <div className="p-8 text-center text-[var(--muted)]">No problems match.</div>
+          <div className="p-10 text-center text-[var(--muted)] text-[13px]">[NO_MATCH] no records for current query.</div>
         ) : (
           shown.map((p, i) => {
             const hasSolution = isCurated(p.slug);
@@ -199,43 +173,36 @@ export default function ProblemsPage() {
             return (
               <div
                 key={p.id}
-                className="grid grid-cols-[60px_1fr_70px_80px_110px_110px] items-center gap-2.5 px-4 border-b border-[#1a2332] min-h-[52px] hover:bg-[#111827] cursor-pointer transition-colors"
-                style={{
-                  animation: `fadeIn 0.25s ease both`,
-                  animationDelay: `${Math.min(i * 3, 100)}ms`,
-                }}
+                className="grid grid-cols-[60px_1fr_70px_80px_110px_120px] items-center gap-2.5 px-4 border-b border-[var(--border)] min-h-[52px] hover:bg-[#17171c] cursor-pointer transition-colors"
+                style={{ animation: `fadeIn 0.2s ease both`, animationDelay: `${Math.min(i * 2, 80)}ms` }}
                 onClick={() => router.push(`/problems/${p.slug}`)}
               >
-                <span className="flex items-center gap-1.5 font-bold text-[12px] font-mono text-[#64748b]">
-                  {p.paidOnly && <Crown size={13} className="text-[var(--amber)] flex-none" />}
-                  {p.id}
+                <span className="flex items-center gap-1.5 font-bold text-[12px] text-[var(--dim)]">
+                  {p.paidOnly && <Crown size={12} className="text-[#a1a1aa] flex-none" />}
+                  #{p.id}
                 </span>
-                <span>
-                  <div className="text-[14px] font-semibold text-white">{p.title}</div>
-                  <div className="text-[12px] text-[#64748b] mt-0.5">
-                    {(p.topics || []).slice(0, 4).map((x) => x.name || x).join(" · ")}
-                    {comps && <span className="text-[#4a5568]"> · {comps}</span>}
+                <span className="min-w-0">
+                  <div className="text-[13px] font-semibold text-[var(--text)] truncate">{p.title}</div>
+                  <div className="text-[11px] text-[var(--dim)] mt-0.5 truncate">
+                    {(p.topics || []).slice(0, 4).map((x) => x.name || x).join(" ? ")}
+                    {comps && <span className="text-[var(--muted)]"> ? {comps}</span>}
                   </div>
                 </span>
-                <span className="text-[11.5px] text-[var(--amber)] font-bold">
-                  {hasSolution && (
-                    <span className="inline-flex items-center gap-1">
-                      <CheckCheck size={13} /> sol
-                    </span>
-                  )}
+                <span className="text-[11px] text-[var(--muted)] font-semibold">
+                  {hasSolution ? "YES" : ""}
                 </span>
-                <span className="font-mono text-[12.5px] text-[#64748b]">
-                  {p.askedBy ? `+${p.askedBy}` : "—"}
+                <span className="text-[12px] text-[var(--muted)]">
+                  {p.askedBy ? `+${p.askedBy}` : "--"}
                 </span>
                 <span
                   className={cn(
-                    "text-[11px] font-bold px-2.5 py-1 rounded-full border w-fit",
+                    "text-[10px] font-bold px-2 py-0.5 border w-fit uppercase tracking-wide",
                     difficultyBg(p.difficulty),
                     p.difficulty === "Easy"
-                      ? "text-emerald-400"
+                      ? "text-[#d4d4d8]"
                       : p.difficulty === "Medium"
-                      ? "text-amber-400"
-                      : "text-red-400"
+                      ? "text-[#a1a1aa]"
+                      : "text-[#71717a]"
                   )}
                 >
                   {p.difficulty}
@@ -244,19 +211,13 @@ export default function ProblemsPage() {
                   <button
                     onClick={() => toggleReview(p.slug)}
                     className={cn(
-                      "px-2.5 py-1.5 text-[12px] font-medium rounded-lg border transition-colors",
+                      "px-2.5 py-1 text-[11px] font-semibold border transition-colors uppercase tracking-wide inline-flex items-center gap-1",
                       isReviewed
-                        ? "bg-[var(--green)]/10 text-[var(--green)] border-[var(--green)]/30"
-                        : "bg-transparent text-[var(--muted)] border-[var(--border)] hover:text-white"
+                        ? "bg-[#e5e5e7] text-[#050505] border-[#e5e5e7]"
+                        : "bg-transparent text-[var(--muted)] border-[var(--border)] hover:text-[var(--text)] hover:border-[var(--border-bright)]"
                     )}
                   >
-                    {isReviewed ? (
-                      <span className="inline-flex items-center gap-1">
-                        <CheckCircle2 size={13} /> Reviewed
-                      </span>
-                    ) : (
-                      "Review"
-                    )}
+                    {isReviewed ? (<><CheckCircle2 size={12} /> DONE</>) : "MARK"}
                   </button>
                 </span>
               </div>
@@ -264,20 +225,19 @@ export default function ProblemsPage() {
           })
         )}
 
-        {/* Load More */}
         {shownCount < filtered.length && (
           <div
-            className="text-center py-4 cursor-pointer text-[13px] text-white bg-[#111827] hover:bg-[#1e293b] border-t border-[#1a2332] font-medium"
+            className="text-center py-3 cursor-pointer text-[12px] text-[var(--text)] bg-[#0f0f12] hover:bg-[#17171c] border-t border-[var(--border)] font-semibold uppercase tracking-widest"
             onClick={() => setShownCount((c) => c + ITEMS_PER_PAGE)}
           >
-            <b>Load more</b> — showing {shownCount} of {formatNumber(filtered.length)} problems
+            [LOAD_MORE] showing {shownCount} / {formatNumber(filtered.length)}
           </div>
         )}
       </div>
 
       <style jsx>{`
         @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(4px); }
+          from { opacity: 0; transform: translateY(2px); }
           to { opacity: 1; transform: none; }
         }
       `}</style>
