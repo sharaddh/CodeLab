@@ -94,7 +94,18 @@ app.post('/api/compile',async(req,res)=>{
       await execFileP('javac',['-encoding','UTF-8',f],{timeout:10000});
       return res.json({ok:true,message:'Java compilation passed.'});
     }
-    return res.status(400).json({ok:false,error:'Supported languages: Java, Python'});
+    if(language==='cpp'){
+      const f=path.join(dir,'main.cpp');
+      const pch=path.join(dir,'lc_pch.h');
+      const hasMain=/\bmain\s*\(/.test(code);
+      fs.writeFileSync(pch,"#include <algorithm>\n#include <climits>\n#include <cmath>\n#include <cstring>\n#include <functional>\n#include <iostream>\n#include <map>\n#include <numeric>\n#include <queue>\n#include <set>\n#include <sstream>\n#include <stack>\n#include <string>\n#include <unordered_map>\n#include <unordered_set>\n#include <utility>\n#include <vector>\nusing namespace std;\n");
+      fs.writeFileSync(f, hasMain?code:code+"\n\nint main(){ return 0; }\n");
+      const out=path.join(dir,process.platform==='win32'?'main.exe':'main');
+      const gppArgs=['-std=c++17','-O2']; if(process.platform==='win32') gppArgs.push('-mconsole'); gppArgs.push('-include',pch,f,'-o',out);
+      await execFileP('g++',gppArgs,{timeout:15000});
+      return res.json({ok:true,message:'C++ compilation passed.'});
+    }
+    return res.status(400).json({ok:false,error:'Supported languages: Java, Python, C++'});
   }catch(e){
     res.json({ok:false,message:(e.stderr||e.stdout||e.message||'Compilation failed').toString()});
   }finally{fs.rmSync(dir,{recursive:true,force:true})}
@@ -116,7 +127,19 @@ app.post('/api/run',async(req,res)=>{
       const r=await execFileP('java',['-cp',dir,'Main'],{input,timeout:5000,maxBuffer:1024*1024});
       return res.json({ok:true,stdout:r.stdout,stderr:r.stderr});
     }
-    return res.status(400).json({ok:false,error:'Supported languages: Java, Python'});
+    if(language==='cpp'){
+      const f=path.join(dir,'main.cpp');
+      const pch=path.join(dir,'lc_pch.h');
+      const hasMain=/\bmain\s*\(/.test(code);
+      fs.writeFileSync(pch,"#include <algorithm>\n#include <climits>\n#include <cmath>\n#include <cstring>\n#include <functional>\n#include <iostream>\n#include <map>\n#include <numeric>\n#include <queue>\n#include <set>\n#include <sstream>\n#include <stack>\n#include <string>\n#include <unordered_map>\n#include <unordered_set>\n#include <utility>\n#include <vector>\nusing namespace std;\n");
+      fs.writeFileSync(f, hasMain?code:code+"\n\nint main(){ return 0; }\n");
+      const out=path.join(dir,process.platform==='win32'?'main.exe':'main');
+      const gppArgs=['-std=c++17','-O2']; if(process.platform==='win32') gppArgs.push('-mconsole'); gppArgs.push('-include',pch,f,'-o',out);
+      await execFileP('g++',gppArgs,{timeout:15000});
+      const r=await execFileP(out,[],{input,timeout:5000,maxBuffer:1024*1024,cwd:dir});
+      return res.json({ok:true,stdout:r.stdout,stderr:r.stderr});
+    }
+    return res.status(400).json({ok:false,error:'Supported languages: Java, Python, C++'});
   }catch(e){
     res.json({ok:false,stdout:e.stdout||'',stderr:e.stderr||e.message});
   }finally{fs.rmSync(dir,{recursive:true,force:true})}
