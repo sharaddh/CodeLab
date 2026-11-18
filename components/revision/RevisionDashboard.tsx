@@ -51,7 +51,7 @@ export function RevisionDashboard() {
     return (
       <div className="border border-[var(--border)] rounded-xl bg-[var(--panel)] p-5">
         <h3 className="text-[14px] font-bold mb-2 flex items-center gap-2">
-          <Calendar size={16} className="text-[var(--violet)]" /> Revision Queue
+          <Calendar size={16} className="text-[var(--muted)]" /> Revision Queue
         </h3>
         <p className="text-[13px] text-[var(--muted)]">
           No problems scheduled for revision. Mark problems as reviewed to start tracking.
@@ -64,7 +64,7 @@ export function RevisionDashboard() {
     <div className="border border-[var(--border)] rounded-xl bg-[var(--panel)] overflow-hidden">
       <div className="px-4 py-3 border-b border-[var(--border)]">
         <h3 className="text-[14px] font-bold flex items-center gap-2">
-          <Calendar size={16} className="text-[var(--violet)]" /> Revision Queue
+          <Calendar size={16} className="text-[var(--muted)]" /> Revision Queue
         </h3>
       </div>
 
@@ -108,7 +108,7 @@ export function RevisionDashboard() {
               >
                 <span className="text-[12px] font-mono text-[#64748b] w-[40px]">{item.problem.id}</span>
                 <span className="text-[13px] text-white flex-1">{item.problem.title}</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--violet)]/15 text-[var(--violet)] font-semibold">
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--muted)]/15 text-[var(--muted)] font-semibold">
                   {item.confidence}/5
                 </span>
               </Link>
@@ -119,7 +119,7 @@ export function RevisionDashboard() {
 
       <Link
         href="/problems?status=reviewed"
-        className="block px-4 py-2.5 text-center text-[12px] text-[var(--violet)] hover:bg-[#111827] transition-colors font-semibold"
+        className="block px-4 py-2.5 text-center text-[12px] text-[var(--muted)] hover:bg-[#111827] transition-colors font-semibold"
       >
         View all →
       </Link>
