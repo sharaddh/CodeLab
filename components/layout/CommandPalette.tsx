@@ -145,7 +145,7 @@ export function CommandPalette() {
                   key={item.id}
                   onClick={() => navigate(item.href)}
                   className={`w-full flex items-center gap-3 px-4 py-2 text-left transition-colors ${
-                    i === selectedIdx ? "bg-[var(--violet)]/10" : "hover:bg-[#111827]"
+                    i === selectedIdx ? "bg-[var(--muted)]/10" : "hover:bg-[#111827]"
                   }`}
                 >
                   <div className="flex-1 min-w-0">
