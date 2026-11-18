@@ -12,7 +12,7 @@ const variants = {
   easy: "bg-[var(--green)]/15 text-[var(--green)]",
   medium: "bg-[var(--amber)]/15 text-[var(--amber)]",
   hard: "bg-[var(--red)]/15 text-[var(--red)]",
-  accent: "bg-[var(--violet)]/15 text-[var(--violet)]",
+  accent: "bg-[var(--muted)]/15 text-[var(--muted)]",
 };
 
 export function Badge({ children, variant = "default", className }: BadgeProps) {
